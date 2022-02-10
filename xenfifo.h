@@ -41,10 +41,12 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 
-#include <xen/hypercall.h>
-#include <xen/driver_util.h>
-#include <xen/gnttab.h>
-#include <xen/evtchn.h>
+#include <asm/xen/hypercall.h>
+//#include <xen/driver_util.h>
+//#include <xen/gnttab.h>
+#include <xen/grant_table.h>
+//#include <xen/evtchn.h>
+#include <xen/events.h>
 
 #include "debug.h"
 

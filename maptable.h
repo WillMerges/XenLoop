@@ -49,7 +49,7 @@
 #define DISCOVER_TIMEOUT 1
 
 
-#define HASH_SIZE 64
+#define XENLOOP_HASH_SIZE 64
 
 ulong  hash(u8 *);
 int    equal(void *, void *);
@@ -62,8 +62,8 @@ typedef struct Bucket {
 typedef struct HashTable {
 	ulong 		count,
 			buckets; 
-	Bucket  	table[HASH_SIZE];
-	kmem_cache_t	*entries;
+	Bucket  	table[XENLOOP_HASH_SIZE];
+	struct kmem_cache* entries;
 } HashTable;
 
 

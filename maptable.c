@@ -1,9 +1,9 @@
 /*
- *  XenLoop -- A High Performance Inter-VM Network Loopback 
+ *  XenLoop -- A High Performance Inter-VM Network Loopback
  *
  *  Installation and Usage instructions
  *
- *  Authors: 
+ *  Authors:
  *  	Jian Wang - Binghamton University (jianwang@cs.binghamton.edu)
  *  	Kartik Gopalan - Binghamton University (kartik@cs.binghamton.edu)
  *
@@ -36,13 +36,13 @@
 #include "debug.h"
 #include "bififo.h"
 
-extern void send_destroy_chn_msg(u8 *dest_mac); 
+extern void send_destroy_chn_msg(u8 *dest_mac);
 extern wait_queue_head_t swq;
 
 static DEFINE_SPINLOCK(glock);
 
 ulong  hash(u8 *pmac){
-	return (pmac[3] + pmac[4] + pmac[5]) % HASH_SIZE;
+	return (pmac[3] + pmac[4] + pmac[5]) % XENLOOP_HASH_SIZE;
 }
 
 
@@ -55,7 +55,7 @@ int  equal(void *pmac1, void *pmac2)
 };
 
 
-inline void insert_table(HashTable * ht, void * key, u8 domid) 
+inline void insert_table(HashTable * ht, void * key, u8 domid)
 {
 	Bucket * b = &ht->table[hash(key)];
 	Entry * e;
@@ -66,12 +66,13 @@ inline void insert_table(HashTable * ht, void * key, u8 domid)
 	memcpy(e->mac, key, ETH_ALEN);
 	e->domid = domid;
 	e->timestamp = jiffies;
-	e->ack_timer = NULL;
+	// e->ack_timer = NULL;
+	e->del_timer = 0;
 	e->status = XENLOOP_STATUS_INIT;
 	e->listen_flag = 0xff;
 	e->bfh = NULL;
 	e->retry_count = 0;
-	
+
 	spin_lock_irqsave(&glock, flags);
 	list_add(&e->mapping, &(b->bucket));
 	ht->count++;
@@ -99,9 +100,12 @@ inline void remove_entry(HashTable *ht, Entry *e, struct list_head *x) {
 	}
 	e->status  = XENLOOP_STATUS_INIT;
 
-	if (e->ack_timer)
-		del_timer_sync(e->ack_timer);
-	
+	// if (e->ack_timer)
+		// del_timer_sync(e->ack_timer);
+	if(e->del_timer) {
+		del_timer(&e->ack_timer);
+	}
+
 	kmem_cache_free(ht->entries, e);
 	DPRINTK("Delete Guest: deleted one guest mac =" MAC_FMT " Domid = %d.\n", \
 		 MAC_NTOA(e->mac), e->domid);
@@ -114,7 +118,7 @@ inline Entry* lookup_bfh(HashTable * ht, void * key)
 	struct list_head * x, * y;
 	Entry * e;
 
-	for(i = 0; i < HASH_SIZE; i++) { 
+	for(i = 0; i < XENLOOP_HASH_SIZE; i++) {
 		list_for_each_safe(x, y, &(ht->table[i].bucket)) {
 			e = list_entry(x, Entry, mapping);
 			if(key ==  e->bfh) {
@@ -127,8 +131,8 @@ inline Entry* lookup_bfh(HashTable * ht, void * key)
 
 
 
-inline void * lookup_table(HashTable * ht, void * key) 
-{ 
+inline void * lookup_table(HashTable * ht, void * key)
+{
 	Entry * d = NULL;
 	Bucket * b = &ht->table[hash(key)];
 
@@ -147,31 +151,31 @@ inline void * lookup_table(HashTable * ht, void * key)
 }
 
 
-inline int has_suspend_entry(HashTable * ht) 
+inline int has_suspend_entry(HashTable * ht)
 {
 	int i;
 	Entry *e;
 	struct list_head *x, *y;
 	Bucket * table = ht->table;
-	
-	for(i = 0; i < HASH_SIZE; i++) { 
+
+	for(i = 0; i < XENLOOP_HASH_SIZE; i++) {
 		list_for_each_safe(x, y, &(table[i].bucket)) {
 			e = list_entry(x, Entry, mapping);
-			if (e->status == XENLOOP_STATUS_SUSPEND) 
+			if (e->status == XENLOOP_STATUS_SUSPEND)
 				return 1;
 		}
 	}
 	return 0;
 }
 
-inline void mark_suspend(HashTable * ht) 
+inline void mark_suspend(HashTable * ht)
 {
 	int i;
 	Entry *e;
 	struct list_head *x, *y;
 	Bucket * table = ht->table;
 	TRACE_ENTRY;
-	for(i = 0; i < HASH_SIZE; i++) {
+	for(i = 0; i < XENLOOP_HASH_SIZE; i++) {
 		list_for_each_safe(x, y, &(table[i].bucket)) {
 			e = list_entry(x, Entry, mapping);
 			if (check_descriptor(e->bfh)) {
@@ -186,7 +190,7 @@ inline void mark_suspend(HashTable * ht)
 }
 
 
-void notify_all_bfs(HashTable * ht) 
+void notify_all_bfs(HashTable * ht)
 {
 	int i;
 	Entry *e;
@@ -195,7 +199,7 @@ void notify_all_bfs(HashTable * ht)
 
 	TRACE_ENTRY;
 
-	for(i = 0; i < HASH_SIZE; i++) {
+	for(i = 0; i < XENLOOP_HASH_SIZE; i++) {
 		list_for_each_safe(x, y, &(table[i].bucket)) {
 			e = list_entry(x, Entry, mapping);
 			if ( check_descriptor(e->bfh) && (xf_size( e->bfh->out ) > 0) )
@@ -214,7 +218,7 @@ inline void check_timeout(HashTable * ht)
 	struct list_head *x, *y;
 	Bucket * table = ht->table;
 
-	for(i = 0; i < HASH_SIZE; i++) { 
+	for(i = 0; i < XENLOOP_HASH_SIZE; i++) {
 		list_for_each_safe(x, y, &(table[i].bucket)) {
 			e = list_entry(x, Entry, mapping);
 	 		if ((jiffies - e->timestamp) > (5*DISCOVER_TIMEOUT*HZ)) {
@@ -227,12 +231,12 @@ inline void check_timeout(HashTable * ht)
 			}
 		}
 	}
-	if (found) 
+	if (found)
 		wake_up_interruptible(&swq);
 }
 
 
-inline void update_table(HashTable * ht, u8 *mac, int mac_count) 
+inline void update_table(HashTable * ht, u8 *mac, int mac_count)
 {
 	int i,j,found = 0;
 	Entry *e;
@@ -240,8 +244,8 @@ inline void update_table(HashTable * ht, u8 *mac, int mac_count)
 	struct list_head *x, *y;
 	Bucket * table = ht->table;
 
-	
-	for(j = 0; j < HASH_SIZE; j++) { 
+
+	for(j = 0; j < XENLOOP_HASH_SIZE; j++) {
 		list_for_each_safe(x, y, &(table[j].bucket)) {
 			e = list_entry(x, Entry, mapping);
 			for(i = 0, p = mac;  i < mac_count; i++, p+= ETH_ALEN) {
@@ -250,9 +254,9 @@ inline void update_table(HashTable * ht, u8 *mac, int mac_count)
 					found = 1;
 					break;
 				}
-				
+
 			}
-			
+
 			if (found) {
 				found = 0;
 				continue;
@@ -269,19 +273,19 @@ inline void update_table(HashTable * ht, u8 *mac, int mac_count)
 }
 
 
-int init_hash_table(HashTable * ht, char * name) 
+int init_hash_table(HashTable * ht, char * name)
 {
 	int i;
 
 	ht->count 	= 0;
-	ht->entries = kmem_cache_create(name, sizeof(Entry), 0, 0, NULL, NULL);
+	ht->entries = kmem_cache_create(name, sizeof(Entry), 0, 0, NULL);
 
 	if(!ht->entries) {
 		EPRINTK("hashtable(): slab caches failed.\n");
 		return -ENOMEM;
 	}
 
-	for(i = 0; i < HASH_SIZE; i++) {
+	for(i = 0; i < XENLOOP_HASH_SIZE; i++) {
 		INIT_LIST_HEAD(&(ht->table[i].bucket));
 	}
 
@@ -296,30 +300,31 @@ void clean_suspended_entries(HashTable * ht)
 	struct list_head *x, *y;
 	Bucket * table = ht->table;
 
-	for(i = 0; i < HASH_SIZE; i++) { 
+	for(i = 0; i < XENLOOP_HASH_SIZE; i++) {
 		list_for_each_safe(x, y, &(table[i].bucket)) {
 			e = list_entry(x, Entry, mapping);
 			if (e->status == XENLOOP_STATUS_SUSPEND) {
 				remove_entry(ht, e, x);
-			} 
+			}
 		}
 	}
 }
 
 
-void clean_table(HashTable * ht) 
+void clean_table(HashTable * ht)
 {
 	int i;
 	Entry *e;
 	struct list_head *x, *y;
 	Bucket * table = ht->table;
 
-	for(i = 0; i < HASH_SIZE; i++) { 
+	for(i = 0; i < XENLOOP_HASH_SIZE; i++) {
 		list_for_each_safe(x, y, &(table[i].bucket)) {
 			e = list_entry(x, Entry, mapping);
 			remove_entry(ht, e, x);
 		}
 	}
 
-	BUG_ON(kmem_cache_destroy(ht->entries));
+    kmem_cache_destroy(ht->entries);
+	//BUG_ON(kmem_cache_destroy(ht->entries));
 }

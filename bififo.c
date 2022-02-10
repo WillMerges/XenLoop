@@ -1,9 +1,9 @@
 /*
- *  XenLoop -- A High Performance Inter-VM Network Loopback 
+ *  XenLoop -- A High Performance Inter-VM Network Loopback
  *
  *  Installation and Usage instructions
  *
- *  Authors: 
+ *  Authors:
  *  	Jian Wang - Binghamton University (jianwang@cs.binghamton.edu)
  *  	Kartik Gopalan - Binghamton University (kartik@cs.binghamton.edu)
  *
@@ -41,10 +41,10 @@
 #include <linux/if_ether.h>
 #include <linux/netdevice.h>
 
-#include <xen/hypercall.h>
-#include <xen/driver_util.h>
-#include <xen/gnttab.h>
-#include <xen/evtchn.h>
+#include <asm/xen/hypercall.h>
+//#include <xen/driver_util.h>
+#include <xen/grant_table.h>
+#include <xen/events.h>
 
 #include "debug.h"
 #include "xenfifo.h"
@@ -56,9 +56,9 @@ extern wait_queue_head_t swq;
 extern struct net_device *NIC;
 extern Entry*	lookup_bfh(HashTable *, void *);
 
-void bf_notify(int port) 
+void bf_notify(int port)
 {
-	evtchn_send_t op;
+	struct evtchn_send op;
 	int ret;
 
 	TRACE_ENTRY;
@@ -69,7 +69,7 @@ void bf_notify(int port)
 	ret = HYPERVISOR_event_channel_op(EVTCHNOP_send, &op);
 	if ( ret != 0 ) {
 		EPRINTK("Unable to signal on event channel\n");
-		goto out;		
+		goto out;
 	}
 
 	TRACE_EXIT;
@@ -84,15 +84,15 @@ static inline void copy_large_pkt(bf_data_t * mdata, struct sk_buff *skb, xf_han
 {
 	char *pback, *pfront, *pfifo;
 	int num_entries, len, len1, len2, pkt_len;
-	
+
 	TRACE_ENTRY;
 
         skb_reserve(skb, 2 + ETH_HLEN);
         skb_put(skb, mdata->pkt_info);
-	
+
 	pkt_len = mdata->pkt_info;
 	num_entries = pkt_len/sizeof(bf_data_t);
-	if (pkt_len % sizeof(bf_data_t)) 
+	if (pkt_len % sizeof(bf_data_t))
 		num_entries++;
 
 
@@ -118,14 +118,15 @@ static inline void copy_large_pkt(bf_data_t * mdata, struct sk_buff *skb, xf_han
 		}
 	}
 
-        skb->mac.raw = skb->data - ETH_HLEN; 
+        //skb->mac.raw = skb->data - ETH_HLEN;
+        skb->mac_header = (__u16)(skb->data - skb->head) + ETH_HLEN;
         skb->ip_summed = CHECKSUM_UNNECESSARY;
         skb->pkt_type = PACKET_HOST;
         skb->protocol = htons(ETH_P_IP);
         skb->dev = NIC;
         skb_shinfo(skb)->nr_frags = 0;
         skb_shinfo(skb)->frag_list = NULL;
-        skb_shinfo(skb)->frags[0].page = NULL;
+        skb_shinfo(skb)->frags[0].page.p = NULL;
 
 	TRACE_EXIT;
 }
@@ -150,12 +151,12 @@ static inline struct sk_buff * copy_packet(xf_handle_t * xfh)
 	copy_large_pkt(data, skb, xfh);
 
 	n = data->pkt_info/sizeof(bf_data_t) + 1;
-	if (data->pkt_info % sizeof(bf_data_t)) 
+	if (data->pkt_info % sizeof(bf_data_t))
 		n++;
 
 	ret = xf_popn(xfh, n);
 	BUG_ON( ret < 0 );
-	
+
 out:
 	TRACE_EXIT;
 	return skb;
@@ -169,7 +170,7 @@ void recv_packets(bf_handle_t *bfh)
 
 	TRACE_ENTRY;
 
-	spin_lock_irqsave(&recv_lock, flags); 
+	spin_lock_irqsave(&recv_lock, flags);
 
 	while( !xf_empty(bfh->in) ) {
 
@@ -181,9 +182,10 @@ void recv_packets(bf_handle_t *bfh)
 
 		netif_rx(skb);
 
-		NIC->last_rx = jiffies;
+		// this isn't needed anymore, i think
+		// NIC->last_rx = jiffies;
 
-		spin_lock_irqsave(&recv_lock, flags); 
+		spin_lock_irqsave(&recv_lock, flags);
 	}
 
 	spin_unlock_irqrestore(&recv_lock, flags);
@@ -193,7 +195,7 @@ void recv_packets(bf_handle_t *bfh)
 
 
 
-irqreturn_t bf_callback(int rq, void *dev_id, struct pt_regs *regs)
+irqreturn_t bf_callback(int rq, void *dev_id)
 {
 	bf_handle_t *bfh = (bf_handle_t *)dev_id;
 
@@ -213,14 +215,14 @@ irqreturn_t bf_callback(int rq, void *dev_id, struct pt_regs *regs)
 	}
 
 	recv_packets(bfh);
-	
+
 	TRACE_EXIT;
 	return IRQ_HANDLED;
 }
 
 void free_evtch(int port, int irq, void *dev_id)
 {
-	evtchn_close_t op;
+	struct evtchn_close op;
 	int ret;
 
 	TRACE_ENTRY;
@@ -232,7 +234,7 @@ void free_evtch(int port, int irq, void *dev_id)
 		memset(&op, 0, sizeof(op));
 		op.port = port;
 		ret = HYPERVISOR_event_channel_op(EVTCHNOP_close, &op);
-		if ( ret != 0 ) 
+		if ( ret != 0 )
 			EPRINTK("Unable to cleanly close event channel\n");
 	}
 
@@ -244,7 +246,7 @@ void free_evtch(int port, int irq, void *dev_id)
 
 int create_evtch(domid_t rdomid, int *port, int *irq, void *arg)
 {
-	evtchn_alloc_unbound_t op;
+	struct evtchn_alloc_unbound op;
 	int ret;
 
 	TRACE_ENTRY;
@@ -263,7 +265,7 @@ int create_evtch(domid_t rdomid, int *port, int *irq, void *arg)
 	}
 	*port = op.port;
 
-	ret = bind_caller_port_to_irqhandler(op.port, bf_callback, SA_SAMPLE_RANDOM, "bf_listener", arg);
+	ret = bind_evtchn_to_irqhandler(op.port, bf_callback, SA_RESTART, "bf_listener", arg);
 	if ( ret  <= 0 ) {
 		EPRINTK("Unable to bind event channel to callback\n");
 		goto out1;
@@ -291,10 +293,10 @@ void bf_destroy(bf_handle_t *bfl)
 		goto err;
 	}
 
-	if(bfl->in) 
+	if(bfl->in)
 		xf_destroy(bfl->in);
 
-	if(bfl->out) 
+	if(bfl->out)
 		xf_destroy(bfl->out);
 
 	free_evtch(bfl->port, bfl->irq, (void *)bfl);
@@ -347,7 +349,7 @@ err:
 int bind_evtch(domid_t rdomid, int rport, int *local_port, int *local_irq, void *arg)
 {
 
-	evtchn_bind_interdomain_t op;
+	struct evtchn_bind_interdomain op;
 	int ret;
 	TRACE_ENTRY;
 
@@ -365,7 +367,7 @@ int bind_evtch(domid_t rdomid, int rport, int *local_port, int *local_irq, void 
 	}
 	*local_port = op.local_port;
 
-	ret = bind_caller_port_to_irqhandler(op.local_port, bf_callback, SA_SAMPLE_RANDOM, "bf_connector", arg);
+	ret = bind_evtchn_to_irqhandler(op.local_port, bf_callback, SA_RESTART, "bf_connector", arg);
 	if ( ret  <= 0 ) {
 		EPRINTK("Unable to bind event channel to callback\n");
 		goto out1;
@@ -393,10 +395,10 @@ void bf_disconnect(bf_handle_t *bfc)
 		goto err;
 	}
 
-	if(bfc->in) 
+	if(bfc->in)
 		xf_disconnect(bfc->in);
 
-	if(bfc->out) 
+	if(bfc->out)
 		xf_disconnect(bfc->out);
 
 	free_evtch(bfc->port, bfc->irq, (void *)bfc);
@@ -410,7 +412,7 @@ err:
 
 }
 
-bf_handle_t *bf_connect(domid_t rdomid, int rgref_in, int rgref_out, int rport) 
+bf_handle_t *bf_connect(domid_t rdomid, int rgref_in, int rgref_out, int rport)
 {
 	bf_handle_t *bfc = NULL;
 	int ret;
@@ -444,4 +446,3 @@ err:
 	TRACE_ERROR;
 	return NULL;
 }
-

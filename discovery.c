@@ -38,10 +38,12 @@
 #include <linux/mm.h>
 #include <linux/genhd.h>
 
-#include <xen/hypercall.h>
-#include <xen/driver_util.h>
-#include <xen/gnttab.h>
-#include <xen/evtchn.h>
+#include <asm/xen/hypercall.h>
+//#include <asm/xen/driver_util.h>
+//#include <xen/gnttab.h>
+#include <xen/grant_table.h>
+//#include <xen/evtchn.h>
+#include <xen/events.h>
 #include <xen/xenbus.h>
 
 #include <linux/if_ether.h>
@@ -211,13 +213,13 @@ inline void net_send(struct sk_buff * skb, u8 * dest)
 
 	TRACE_ENTRY;
 	
-	skb->nh.raw = skb->data; 
+	skb->network_header = 0; 
 
 	skb->len = headers;
 	skb->data_len = 0;
 	skb_shinfo(skb)->nr_frags 	= 0;
 	skb_shinfo(skb)->frag_list 	= NULL;
-	skb->tail = skb->data + headers;
+	skb->tail = headers; // TODO check if this is an offset or not
 
 	skb->dev 	= NIC;
 	skb->protocol 	= htons(ETH_P_TIDC);
@@ -300,7 +302,7 @@ static int __init discover_init(void)
 
 	TRACE_ENTRY;
 
-	NIC = dev_get_by_name(nic);
+	NIC = dev_get_by_name(&init_net, nic);
 	if(!NIC) {
 		DB("discovery_init(): Could not find network card %s\n", nic);
 		ret = -ENODEV;

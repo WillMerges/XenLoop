@@ -1,9 +1,9 @@
 /*
- *  XenLoop -- A High Performance Inter-VM Network Loopback 
+ *  XenLoop -- A High Performance Inter-VM Network Loopback
  *
  *  Installation and Usage instructions
  *
- *  Authors: 
+ *  Authors:
  *  	Jian Wang - Binghamton University (jianwang@cs.binghamton.edu)
  *  	Kartik Gopalan - Binghamton University (kartik@cs.binghamton.edu)
  *
@@ -38,10 +38,10 @@
 #include <linux/mm.h>
 #include <linux/genhd.h>
 
-#include <xen/hypercall.h>
-#include <xen/driver_util.h>
-#include <xen/gnttab.h>
-#include <xen/evtchn.h>
+#include <asm/xen/hypercall.h>
+// #include <asm/xen/driver_util.h>
+#include <xen/grant_table.h>
+#include <xen/events.h>
 #include <xen/xenbus.h>
 
 #include <net/sock.h>
@@ -69,10 +69,10 @@
 #include "maptable.h"
 
 
-extern int 	init_hash_table(HashTable *, char *);  
+extern int 	init_hash_table(HashTable *, char *);
 extern void 	clean_table(HashTable *);
-extern void 	insert_table(HashTable *, void *, u8); 
-extern void*	lookup_table(HashTable *, void *); 
+extern void 	insert_table(HashTable *, void *, u8);
+extern void*	lookup_table(HashTable *, void *);
 extern void     update_table(HashTable *,u8 *, int);
 extern void	mark_suspend(HashTable *);
 extern int	has_suspend_entry(HashTable *);
@@ -92,7 +92,7 @@ static int if_total = 0;
 static skb_queue_t out_queue;
 static skb_queue_t pending_free;
 
-static int xenloop_connect(message_t *msg, Entry *e); 
+static int xenloop_connect(message_t *msg, Entry *e);
 static int xenloop_listen(Entry *e);
 static struct task_struct *suspend_thread = NULL;
 DECLARE_WAIT_QUEUE_HEAD(swq);
@@ -113,7 +113,7 @@ static int  write_xenstore(int status)
 	return err;
 }
 
-static domid_t get_my_domid(void) 
+static domid_t get_my_domid(void)
 {
 	char *domidstr;
 	domid_t domid;
@@ -132,7 +132,7 @@ static domid_t get_my_domid(void)
 }
 
 
-int store_mac(char* mac) 
+int store_mac(char* mac)
 {
 	char *pEnd = mac;
 	int i;
@@ -143,9 +143,9 @@ int store_mac(char* mac)
 	}
 
 	my_macs[(int)num_of_macs][ETH_ALEN-1] = simple_strtol(pEnd, NULL, 16);
-	
+
 	num_of_macs++;
-	
+
 	return 0;
 }
 
@@ -183,7 +183,7 @@ static int probe_vifs(void)
 		store_mac(macstr);
 		DB("device/vif/%s/mac path=%s ==> %s\n", dir[i], path, macstr);
 
-		
+
 		kfree(macstr);
 		kfree(path);
 	}
@@ -193,7 +193,7 @@ out:
 	return err;
 }
 
-void session_update(message_t* msg) 
+void session_update(message_t* msg)
 {
 	int i, found = 0;
 	u8 mac_count = msg->mac_count;
@@ -206,7 +206,7 @@ void session_update(message_t* msg)
 		}
 	}
 	if (!found) return;
-	
+
 	for(i=0; i<mac_count; i++) {
 		if (memcmp(msg->mac[i], my_macs[0], ETH_ALEN) == 0)
 			continue;
@@ -218,7 +218,7 @@ void session_update(message_t* msg)
 			DPRINTK("Added one new guest mac = " MAC_FMT  " Domid=%d.\n", \
 			   MAC_NTOA(msg->mac[i]), msg->guest_domids[i]);
 
-		} else 
+		} else
 			e->timestamp = jiffies;
 	}
 
@@ -244,16 +244,16 @@ int session_recv(struct sk_buff * skb, net_device * dev, packet_type * pt, net_d
 	int ret = NET_RX_SUCCESS;
 	message_t * msg = NULL;
 	Entry *e;
-	
+
 	TRACE_ENTRY;
 
 	BUG_ON(!skb);
 
 	msg = (message_t *)skb->data;
 	BUG_ON(!msg);
-	
+
 	skb_linearize(skb);
-	
+
 	switch(msg->type) {
 		case XENLOOP_MSG_TYPE_SESSION_DISCOVER:
 			if (!freezed)
@@ -268,20 +268,23 @@ int session_recv(struct sk_buff * skb, net_device * dev, packet_type * pt, net_d
 		case XENLOOP_MSG_TYPE_CREATE_ACK:
 			e = pre_check_msg(msg);
 			if(!e)	goto out;
-			
+
 			e->status = XENLOOP_STATUS_CONNECTED;
-			if (e->ack_timer)
-				del_timer_sync(e->ack_timer);
+			// if (e->ack_timer)
+			// 	del_timer_sync(e->ack_timer);
+			if(e->del_timer) {
+				del_timer(&e->ack_timer);
+			}
 			DPRINTK("LISTENER status changed to XENLOOP_STATUS_CONNECTED!!!\n");
 			break;
 		default:
 			EPRINTK("session_recv(): unknown msg type %d\n", msg->type);
 	}
-	
-out:		
+
+out:
 	kfree_skb(skb);
 	TRACE_EXIT;
-	return ret; 
+	return ret;
 }
 
 
@@ -294,25 +297,26 @@ static packet_type xenloop_ptype = {
 
 
 
-inline void net_send(struct sk_buff * skb, u8 * dest) 
+inline void net_send(struct sk_buff * skb, u8 * dest)
 {
 	ethhdr * eth;
 	int ret;
 
-	skb->nh.raw = skb->data; 
+	skb->network_header = 0;
 
 	skb->len = headers;
 	skb->data_len = 0;
 	skb_shinfo(skb)->nr_frags 	= 0;
 	skb_shinfo(skb)->frag_list 	= NULL;
-	skb->tail = skb->data + headers;
+	// skb->tail = skb->data + headers;
+	skb->tail = headers;
 
 	skb->dev 	= NIC;
 	skb->protocol 	= htons(ETH_P_TIDC);
 	eth 		= (ethhdr *) skb->data;
 	eth->h_proto 	= htons(ETH_P_TIDC);
 	memcpy(eth->h_dest, dest, ETH_ALEN);
-	
+
 	memcpy(eth->h_source, NIC->dev_addr, ETH_ALEN);
 
 	if((skb_shinfo(skb) == NULL)) {
@@ -321,8 +325,8 @@ inline void net_send(struct sk_buff * skb, u8 * dest)
 	}
 
 	SKB_LINEAR_ASSERT(skb);
-	
-	
+
+
 	if((ret = dev_queue_xmit(skb))) {
 		DB("Non-zero return code: %d %s", ret,
 		   skb_shinfo(skb) ? "good" : "bad");
@@ -335,7 +339,7 @@ inline void net_send(struct sk_buff * skb, u8 * dest)
 }
 
 
-void send_create_chn_msg(int gref_in, int gref_out, int remote_port, u8 *dest_mac) 
+void send_create_chn_msg(int gref_in, int gref_out, int remote_port, u8 *dest_mac)
 {
 	message_t *m;
 	struct sk_buff *skb;
@@ -355,13 +359,13 @@ void send_create_chn_msg(int gref_in, int gref_out, int remote_port, u8 *dest_ma
 	m->gref_in = gref_in;
 	m->gref_out = gref_out;
 	m->remote_port = remote_port;
- 
+
 	net_send(skb, dest_mac);
 
 	TRACE_EXIT;
 }
 
-void send_create_ack_msg(u8 *dest_mac) 
+void send_create_ack_msg(u8 *dest_mac)
 {
 	message_t *m;
 	struct sk_buff *skb;
@@ -377,15 +381,16 @@ void send_create_ack_msg(u8 *dest_mac)
 	m->domid= my_domid;
 	m->mac_count = num_of_macs;
 	memcpy(m->mac, my_macs, num_of_macs*ETH_ALEN);
- 
+
 	net_send(skb, dest_mac);
 
 	TRACE_EXIT;
 }
 
-static void ack_timeout(ulong data) 
+static void ack_timeout(struct timer_list* tm)
 {
-	Entry *e = (void *)data;
+	// the first member of the struct is the address of the struct Entry
+	Entry* e = container_of(tm, struct Entry, ack_timer);
 	bf_handle_t *bfl;
 
 	TRACE_ENTRY;
@@ -393,8 +398,8 @@ static void ack_timeout(ulong data)
 	BUG_ON(!e);
 	BUG_ON(!e->listen_flag);
 
-	
-	if( e->status == XENLOOP_STATUS_CONNECTED ) 
+
+	if( e->status == XENLOOP_STATUS_CONNECTED )
 		return;
 
 	BUG_ON(e->status != XENLOOP_STATUS_LISTEN);
@@ -403,13 +408,13 @@ static void ack_timeout(ulong data)
 	BUG_ON(!bfl);
 
 	if(e->retry_count < MAX_RETRY_COUNT ) {
-		
+
 		send_create_chn_msg(BF_GREF_IN(bfl),		\
 					BF_GREF_OUT(bfl),	\
 					BF_EVT_PORT(bfl),	\
 					e->mac);
 		e->retry_count++;
-		mod_timer(e->ack_timer, jiffies + XENLOOP_ACK_TIMEOUT*HZ);
+		mod_timer(&e->ack_timer, jiffies + XENLOOP_ACK_TIMEOUT*HZ);
 	} else {
 		if (check_descriptor(e->bfh)) {
 			BF_SUSPEND_IN(e->bfh) = 1;
@@ -424,11 +429,11 @@ static void ack_timeout(ulong data)
 
 
 
-static int xenloop_listen(Entry *e) 
+static int xenloop_listen(Entry *e)
 {
 	static DEFINE_SPINLOCK(listen_lock);
 	unsigned long flag;
-	domid_t remote_domid = e->domid; 
+	domid_t remote_domid = e->domid;
 	bf_handle_t *bfl = NULL;
 	int i;
 	bf_data_t *pbf;
@@ -448,10 +453,10 @@ static int xenloop_listen(Entry *e)
 	spin_unlock_irqrestore(&listen_lock, flag);
 
 
-	
-	bfl = bf_create(remote_domid, XENLOOP_ENTRY_ORDER); 
+
+	bfl = bf_create(remote_domid, XENLOOP_ENTRY_ORDER);
 	if(!bfl) {
-		e->status = XENLOOP_STATUS_INIT; 
+		e->status = XENLOOP_STATUS_INIT;
 
 		EPRINTK("bf_creat failed\n");
 		TRACE_ERROR;
@@ -470,28 +475,30 @@ static int xenloop_listen(Entry *e)
 	e->listen_flag = 1;
 	e->bfh = bfl;
 
-	
+
 	send_create_chn_msg(BF_GREF_IN(bfl),
 				BF_GREF_OUT(bfl),
 				BF_EVT_PORT(bfl),
 				e->mac);
 
-	
-	e->ack_timer = kmalloc(sizeof(struct timer_list), GFP_ATOMIC);
-	BUG_ON(!e->ack_timer);
-	init_timer(e->ack_timer);
-	e->ack_timer->function	= ack_timeout;
-	e->ack_timer->expires	= jiffies + XENLOOP_ACK_TIMEOUT*HZ;
-	e->ack_timer->data	= (unsigned long)e;
-	add_timer(e->ack_timer);
+
+	// e->ack_timer = kmalloc(sizeof(struct timer_list), GFP_ATOMIC);
+	// BUG_ON(!e->ack_timer);
+	// init_timer(e->ack_timer);
+	timer_setup(&e->ack_timer, ack_timeout, 0);
+	e->del_timer = 1;
+	// e->ack_timer->function	= ack_timeout;
+	e->ack_timer.expires	= jiffies + XENLOOP_ACK_TIMEOUT*HZ;
+	// e->ack_timer->data	= (unsigned long)e;
+	add_timer(&e->ack_timer);
 
 	TRACE_EXIT;
 	return 0;
 }
 
-static int xenloop_connect(message_t *msg, Entry *e) 
+static int xenloop_connect(message_t *msg, Entry *e)
 {
-	domid_t remote_domid = e->domid; 
+	domid_t remote_domid = e->domid;
 	bf_handle_t *bfc = NULL;
 
 	TRACE_ENTRY;
@@ -504,13 +511,13 @@ static int xenloop_connect(message_t *msg, Entry *e)
 		return 0;
 	}
 
-	
+
 	if(msg->gref_in <= 0 || msg->gref_out <= 0 || msg->remote_port <= 0) {
 		EPRINTK("gref_in %d gref_out %d remote_port %d\n", msg->gref_in, msg->gref_out, msg->remote_port);
 		goto err;
 	}
 
-	
+
 	bfc = bf_connect(remote_domid, msg->gref_out, msg->gref_in,\
 				 msg->remote_port);
 	if(!bfc) {
@@ -524,7 +531,7 @@ static int xenloop_connect(message_t *msg, Entry *e)
 	e->status = XENLOOP_STATUS_CONNECTED;
 	DPRINTK("CONNECTOR status changed to XENLOOP_STATUS_CONNECTED!!!\n");
 
-	
+
 	send_create_ack_msg(e->mac);
 
 	TRACE_EXIT;
@@ -556,10 +563,10 @@ static int xmit_large_pkt(struct sk_buff *skb, xf_handle_t *xfh)
 
 	mdata->status = BF_WAITING;
 	mdata->type = BF_PACKET;
-	mdata->pkt_info = skb->len; 
+	mdata->pkt_info = skb->len;
 
 	num_entries = skb->len/sizeof(bf_data_t);
-	if (skb->len % sizeof(bf_data_t)) 
+	if (skb->len % sizeof(bf_data_t))
 		num_entries++;
 
 	pfifo = (char *)xfh->fifo;
@@ -638,7 +645,7 @@ inline int xmit_packets(struct sk_buff *skb)
 	spin_lock_irqsave( &xmit_lock, flags );
 
 	if(skb) {
-		if ( skb->len + sizeof(bf_data_t) < (1 << XENLOOP_ENTRY_ORDER)*sizeof(bf_data_t) ) 
+		if ( skb->len + sizeof(bf_data_t) < (1 << XENLOOP_ENTRY_ORDER)*sizeof(bf_data_t) )
 			enqueue(&out_queue, skb);
 		else {
 			DB("Packet size greater than total fifo size\n");
@@ -653,7 +660,7 @@ inline int xmit_packets(struct sk_buff *skb)
 		skb = out_queue.head;
 		BUG_ON(!skb);
 
-		e = lookup_table(&mac_domid_map, skb->dst->neighbour->ha);
+		e = lookup_table(&mac_domid_map, dst_neigh_lookup_skb(skb_dst(skb), skb)->ha);
 		BUG_ON(!e);
 
 		rc = xmit_large_pkt(skb, e->bfh->out);
@@ -680,37 +687,35 @@ inline int xmit_packets(struct sk_buff *skb)
 
 
 static unsigned int iphook_out(
-	unsigned int hooknum, 
-	struct sk_buff **pskb,
-	const struct net_device *in,
-	const struct net_device *out,
-	int (*okfn)(struct sk_buff *))
+	void* priv,
+	struct sk_buff *skb,
+	const struct nf_hook_state* state)
 {
 	Entry * e;
 	int ret = NF_ACCEPT;
-	struct sk_buff *skb= *pskb;
-        struct dst_entry *dst = skb->dst;
-        struct neighbour *neigh = dst->neighbour;
+        // struct dst_entry *dst = skb->dst;
+        // struct neighbour *neigh = dst->neighbour;
+	struct neighbour *neigh = dst_neigh_lookup_skb(skb_dst(skb), skb);
 
 	if_total++;
 	if (skb->len > 32768*8)  if_over++;
 
-	
-        if (!dst || !neigh) {
+
+        if (!neigh) {
 		return NF_ACCEPT;
 	}
-        
+
 
 	if (!(neigh->nud_state & (NUD_CONNECTED|NUD_DELAY|NUD_PROBE) )) {
 		return NF_ACCEPT;
 	}
-	
+
 	if (!(e = lookup_table(&mac_domid_map, neigh->ha))) {
 		return NF_ACCEPT;
 	}
 
 	TRACE_ENTRY;
-		
+
 	if (check_descriptor(e->bfh) && (BF_SUSPEND_IN(e->bfh) || BF_SUSPEND_OUT(e->bfh))) {
 		e->status = XENLOOP_STATUS_SUSPEND;
 		wake_up_interruptible(&swq);
@@ -749,16 +754,13 @@ out:
 
 
 static unsigned int iphook_in(
-	unsigned int hooknum, 
-	struct sk_buff **pskb,
-	const struct net_device *in,
-	const struct net_device *out,
-	int (*okfn)(struct sk_buff *))
+	void* priv,
+	struct sk_buff* skb,
+	const struct nf_hook_state* state)
 {
 
 	Entry * e;
 	int ret = NF_ACCEPT;
-	struct sk_buff *skb= *pskb;
 	u8 *src_mac = eth_hdr(skb)->h_source;
 
 	if (!(e = lookup_table(&mac_domid_map, src_mac))) {
@@ -777,21 +779,21 @@ static unsigned int iphook_in(
 
 struct nf_hook_ops iphook_in_ops = {
 	.hook = iphook_in,
-	.owner = THIS_MODULE,
+	// .owner = THIS_MODULE,
 	.pf = PF_INET,
-	.hooknum = NF_IP_PRE_ROUTING,
-	.priority = 10, 
+	.hooknum = NF_INET_PRE_ROUTING,
+	.priority = 10,
 };
 struct nf_hook_ops iphook_out_ops = {
 	.hook = iphook_out,
-	.owner = THIS_MODULE,
+	// .owner = THIS_MODULE,
 	.pf = PF_INET,
-	.hooknum = NF_IP_POST_ROUTING,
-	.priority = 10, 
+	.hooknum = NF_INET_POST_ROUTING,
+	.priority = 10,
 };
 
 
-int net_init(void) 
+int net_init(void)
 {
 
 	int ret = 0, i;
@@ -801,7 +803,7 @@ int net_init(void)
 
 	for ( i=0; i<5; i++) {
 		sprintf(nic, "eth%d", i);
-		NIC = dev_get_by_name(nic);
+		NIC = dev_get_by_name(&init_net, nic);
 		if(NIC) break;
 	}
 	if(!NIC) {
@@ -811,13 +813,13 @@ int net_init(void)
 	}
 
 	DB("Using interface %s, MTU: %d bytes\n", NIC->name, NIC->mtu);
-	
-	ret = nf_register_hook(&iphook_out_ops);
+
+	ret = nf_register_net_hook(&init_net, &iphook_out_ops);
 	if (ret < 0) {
 		EPRINTK("can't register OUT hook.\n");
 		goto out;
-	} 
-	ret = nf_register_hook(&iphook_in_ops);
+	}
+	ret = nf_register_net_hook(&init_net, &iphook_in_ops);
 	if (ret < 0) {
 		EPRINTK("can't register OUT hook.\n");
 		goto out;
@@ -831,14 +833,14 @@ out:
 	return ret;
 }
 
-void net_exit(void) 
+void net_exit(void)
 {
 	TRACE_ENTRY;
 
 	dev_remove_pack(&xenloop_ptype);
 
-	nf_unregister_hook(&iphook_in_ops);
-	nf_unregister_hook(&iphook_out_ops);
+	nf_unregister_net_hook(&init_net, &iphook_in_ops);
+	nf_unregister_net_hook(&init_net, &iphook_out_ops);
 
 	if(NIC) dev_put(NIC);
 
@@ -864,7 +866,7 @@ void post_migration(void)
 
 	freezed = 0;
 	write_xenstore(1);
-	
+
 	TRACE_EXIT;
 	return;
 }
@@ -876,7 +878,7 @@ static int xmit_pending(void *useless)
 {
 	unsigned long timeout;
 	TRACE_ENTRY;
-	
+
 	while(!kthread_should_stop()) {
 		timeout = out_queue.count ? SHORT_PENDING_TIMEOUT : LONG_PENDING_TIMEOUT*HZ;
 		wait_event_interruptible_timeout(pending_wq, (out_queue.count > 0), timeout);
@@ -892,7 +894,7 @@ static int check_suspend(void *useless)
 {
 	int ret;
 	TRACE_ENTRY;
-	
+
 	while(!kthread_should_stop()) {
 		ret = wait_event_interruptible_timeout(swq, has_suspend_entry(&mac_domid_map), SUSPEND_TIMEOUT*HZ);
 		if (ret > 0) {
@@ -907,7 +909,7 @@ static int check_suspend(void *useless)
 
 
 static void suspend_resume_handler(struct xenbus_watch *watch,
-                             const char **vec, unsigned int len)
+                             const char *path, const char* token)
 {
         char **dir;
         unsigned int i, dir_n;
@@ -929,7 +931,7 @@ static void suspend_resume_handler(struct xenbus_watch *watch,
 		EPRINTK("ERROR\n");
 		return;
 	}
-                
+
 
 	cur_state = SR_RESUMED;
         for (i = 0; i < dir_n; i++) {
@@ -941,8 +943,8 @@ static void suspend_resume_handler(struct xenbus_watch *watch,
 		break;
 	}
 
-	if( prev_state == cur_state) 
-		goto out; 
+	if( prev_state == cur_state)
+		goto out;
 
 	switch(cur_state)  {
 
@@ -966,11 +968,11 @@ static struct xenbus_watch suspend_resume_watch = {
         .callback = suspend_resume_handler
 };
 
-static void __exit xenloop_exit(void) 
+static void xenloop_exit(void)
 {
-	
+
 	TRACE_ENTRY;
-	
+
 	write_xenstore(0);
 	freezed = 1;
 
@@ -981,7 +983,7 @@ static void __exit xenloop_exit(void)
 
 	if(suspend_thread)
 		kthread_stop(suspend_thread);
-	
+
 	unregister_xenbus_watch(&suspend_resume_watch);
 
 	net_exit();
@@ -993,7 +995,7 @@ static void __exit xenloop_exit(void)
 }
 
 
-static int __init xenloop_init(void) 
+static int __init xenloop_init(void)
 {
 	int rc = 0;
 
@@ -1006,8 +1008,8 @@ static int __init xenloop_init(void)
 	pending_free.head = NULL;
 	pending_free.tail = NULL;
 	pending_free.count = 0;
-	
-	
+
+
 	if(init_hash_table(&mac_domid_map, "MAC_DOMID_MAP_Table") != 0) {
 		rc = -ENOMEM;
 		goto out;
@@ -1044,7 +1046,7 @@ static int __init xenloop_init(void)
 	}
 
 	DPRINTK("XENLOOP successfully initialized!\n");
-	
+
 out:
 	TRACE_EXIT;
 	return rc;

@@ -34,6 +34,7 @@
 
 #include "debug.h"
 #include "xenfifo.h"
+#include <linux/vmalloc.h>
 
 /*
  * Create a listener-end of FIFO to which a remote domain can connect
@@ -110,8 +111,8 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 
 		if ( xfl->descriptor->grefs[i] < 0) {
 			EPRINTK("Cannot share FIFO %p page %d\n", xfl->fifo, i);
-			while(--i) gnttab_end_foreign_access(xfl->descriptor->grefs[i], 0);
-			gnttab_end_foreign_access(xfl->descriptor->dgref, 0);
+			while(--i) gnttab_end_foreign_access_ref(xfl->descriptor->grefs[i], 0);
+			gnttab_end_foreign_access_ref(xfl->descriptor->dgref, 0);
 			goto err;
 		}
 	}
@@ -147,8 +148,8 @@ int xf_destroy(xf_handle_t *xfl)
 	}
 
 	for(i=0; i < xfl->descriptor->num_pages; i++) 
-		gnttab_end_foreign_access(xfl->descriptor->grefs[i], 0);
-	gnttab_end_foreign_access(xfl->descriptor->dgref, 0);
+		gnttab_end_foreign_access_ref(xfl->descriptor->grefs[i], 0);
+	gnttab_end_foreign_access_ref(xfl->descriptor->dgref, 0);
 
 	free_pages((unsigned long)xfl->fifo, get_order(xfl->descriptor->num_pages*PAGE_SIZE));
 	free_page((unsigned long)xfl->descriptor);
@@ -169,7 +170,7 @@ err:
 xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 {
 	xf_handle_t *xfc = NULL;
-	gnttab_map_grant_ref_t map_op;
+	struct gnttab_map_grant_ref map_op;
 	int ret;
 	int i;
 	TRACE_ENTRY;
@@ -181,8 +182,8 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 	}
 	memset(xfc, 0, sizeof(xf_handle_t));
 
-	xfc->descriptor_vmarea = alloc_vm_area(PAGE_SIZE);
-	xfc->fifo_vmarea = alloc_vm_area( MAX_FIFO_PAGES*PAGE_SIZE );
+	xfc->descriptor_vmarea = vmalloc(PAGE_SIZE);
+	xfc->fifo_vmarea = vmalloc( MAX_FIFO_PAGES*PAGE_SIZE );
 	if(!xfc->descriptor_vmarea || !xfc->fifo_vmarea) {
 		EPRINTK("error: cannot allocate memory for descriptor OR FIFO\n");
 		goto err;
@@ -211,7 +212,7 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 		ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, &map_op, 1);
 
 		if( ret || (map_op.status != GNTST_okay) ) {
-			gnttab_unmap_grant_ref_t unmap_op;
+			struct gnttab_unmap_grant_ref unmap_op;
 
 			EPRINTK("HYPERVISOR_grant_table_op failed ret = %d status = %d\n", ret, map_op.status);
 			while(--i >= 0) {
@@ -241,8 +242,8 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 
 err:
 	if(xfc) {
-		if(xfc->fifo_vmarea) free_vm_area(xfc->fifo_vmarea);
-		if(xfc->descriptor_vmarea) free_vm_area(xfc->descriptor_vmarea);
+		if(xfc->fifo_vmarea) vfree(xfc->fifo_vmarea);
+		if(xfc->descriptor_vmarea) vfree(xfc->descriptor_vmarea);
 		kfree(xfc);
 	}
 	TRACE_ERROR;
@@ -251,7 +252,7 @@ err:
 
 int xf_disconnect(xf_handle_t *xfc)
 {
-	gnttab_unmap_grant_ref_t unmap_op;
+	struct gnttab_unmap_grant_ref unmap_op;
 	int i, num_pages, ret;
 	TRACE_ENTRY;
 
@@ -275,8 +276,8 @@ int xf_disconnect(xf_handle_t *xfc)
 	if( ret )
 		EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
 
-	free_vm_area(xfc->descriptor_vmarea);
-	free_vm_area(xfc->fifo_vmarea);
+	vfree(xfc->descriptor_vmarea);
+	vfree(xfc->fifo_vmarea);
 
 	kfree(xfc);
 
