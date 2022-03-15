@@ -126,7 +126,7 @@ static inline void copy_large_pkt(bf_data_t * mdata, struct sk_buff *skb, xf_han
         skb->dev = NIC;
         skb_shinfo(skb)->nr_frags = 0;
         skb_shinfo(skb)->frag_list = NULL;
-        skb_shinfo(skb)->frags[0].page.p = NULL;
+        skb_shinfo(skb)->frags[0].bv_page = NULL;
 
 	TRACE_EXIT;
 }
