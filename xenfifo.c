@@ -1,9 +1,9 @@
 /*
- *  XenLoop -- A High Performance Inter-VM Network Loopback 
+ *  XenLoop -- A High Performance Inter-VM Network Loopback
  *
  *  Installation and Usage instructions
  *
- *  Authors: 
+ *  Authors:
  *  	Jian Wang - Binghamton University (jianwang@cs.binghamton.edu)
  *  	Kartik Gopalan - Binghamton University (kartik@cs.binghamton.edu)
  *
@@ -39,7 +39,7 @@
 /*
  * Create a listener-end of FIFO to which a remote domain can connect
  *	Called by the listener end of FIFO
- *	
+ *
  * @remote_domid - remote domain  allowed to connect
  * @entry_size - size of each entry in FIFO
  * @entry_order - maximum size of FIFO as a  power of 2. Current max 256. Max maxsize = 2^16.
@@ -59,10 +59,10 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 		goto err;
 	}
 
-	if( sizeof(xf_descriptor_t) > PAGE_SIZE) 
-		BUG(); 
+	if( sizeof(xf_descriptor_t) > PAGE_SIZE)
+		BUG();
 
-	
+
 	if( page_order > MAX_FIFO_PAGE_ORDER) {
 		EPRINTK("%d > 2^MAX_PAGE_ORDER pages requested for FIFO\n", 1<<page_order);
 		goto err;
@@ -75,7 +75,7 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 	}
 	memset(xfl, 0, sizeof(xf_handle_t));
 
-	
+
 	xfl->descriptor = (xf_descriptor_t *) __get_free_page(GFP_KERNEL);
 	if(!xfl->descriptor) {
 		EPRINTK("Cannot allocate descriptor memory page for FIFO\n");
@@ -88,7 +88,7 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 		goto err;
 	}
 
-	
+
 	xfl->listen_flag = 1;
 	xfl->remote_id = remote_domid;
 	xfl->descriptor->suspended_flag = 0;
@@ -105,8 +105,8 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 
 	for( i=0; i < xfl->descriptor->num_pages; i++) {
 
-		xfl->descriptor->grefs[i] = 
-				gnttab_grant_foreign_access(remote_domid, 
+		xfl->descriptor->grefs[i] =
+				gnttab_grant_foreign_access(remote_domid,
 						virt_to_mfn(((uint8_t *)xfl->fifo) + i*PAGE_SIZE), 0);
 
 		if ( xfl->descriptor->grefs[i] < 0) {
@@ -147,7 +147,7 @@ int xf_destroy(xf_handle_t *xfl)
 		goto err;
 	}
 
-	for(i=0; i < xfl->descriptor->num_pages; i++) 
+	for(i=0; i < xfl->descriptor->num_pages; i++)
 		gnttab_end_foreign_access_ref(xfl->descriptor->grefs[i], 0);
 	gnttab_end_foreign_access_ref(xfl->descriptor->dgref, 0);
 
@@ -182,14 +182,20 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 	}
 	memset(xfc, 0, sizeof(xf_handle_t));
 
-	xfc->descriptor_vmarea = vmalloc(PAGE_SIZE);
-	xfc->fifo_vmarea = vmalloc( MAX_FIFO_PAGES*PAGE_SIZE );
+	// xfc->descriptor_vmarea = vmalloc(PAGE_SIZE);
+	// xfc->fifo_vmarea = vmalloc( MAX_FIFO_PAGES*PAGE_SIZE );
+
+	// NOTE: vmalloc is not allowed during an interrupt
+	// use atomic kmalloc instead
+	xfc->descriptor_vmarea = kmalloc(PAGE_SIZE, GFP_ATOMIC);
+	xfc->fifo_vmarea = kmalloc(PAGE_SIZE * MAX_FIFO_PAGES, GFP_ATOMIC);
+
 	if(!xfc->descriptor_vmarea || !xfc->fifo_vmarea) {
 		EPRINTK("error: cannot allocate memory for descriptor OR FIFO\n");
 		goto err;
 	}
 
-	gnttab_set_map_op(&map_op, (unsigned long)xfc->descriptor_vmarea->addr, 
+	gnttab_set_map_op(&map_op, (unsigned long)xfc->descriptor_vmarea->addr,
 				GNTMAP_host_map, remote_gref, remote_domid);
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, &map_op, 1);
 	if( ret || (map_op.status != GNTST_okay) ) {
@@ -197,7 +203,7 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 		goto err;
 	}
 
-	xfc->listen_flag = 0; 
+	xfc->listen_flag = 0;
 	xfc->remote_id = remote_domid;
 	xfc->descriptor = xfc->descriptor_vmarea->addr;
 	xfc->fifo = xfc->fifo_vmarea->addr;
@@ -205,8 +211,8 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 
 	for(i=0; i < xfc->descriptor->num_pages; i++) {
 
-		gnttab_set_map_op(&map_op, 
-				(unsigned long)(xfc->fifo_vmarea->addr + i*PAGE_SIZE), 
+		gnttab_set_map_op(&map_op,
+				(unsigned long)(xfc->fifo_vmarea->addr + i*PAGE_SIZE),
 				GNTMAP_host_map, xfc->descriptor->grefs[i], remote_domid);
 
 		ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, &map_op, 1);
@@ -216,16 +222,16 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 
 			EPRINTK("HYPERVISOR_grant_table_op failed ret = %d status = %d\n", ret, map_op.status);
 			while(--i >= 0) {
-				gnttab_set_unmap_op(&unmap_op, 
-					(unsigned long)xfc->fifo_vmarea->addr + i*PAGE_SIZE, 
+				gnttab_set_unmap_op(&unmap_op,
+					(unsigned long)xfc->fifo_vmarea->addr + i*PAGE_SIZE,
 					GNTMAP_host_map, xfc->fhandles[i]);
 				ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
 				if( ret )
 					EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
 			}
 
-			gnttab_set_unmap_op(&unmap_op, 
-				(unsigned long)xfc->descriptor_vmarea->addr, 
+			gnttab_set_unmap_op(&unmap_op,
+				(unsigned long)xfc->descriptor_vmarea->addr,
 				GNTMAP_host_map, xfc->dhandle);
 			ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
 			if( ret )
@@ -263,14 +269,14 @@ int xf_disconnect(xf_handle_t *xfc)
 
 	num_pages = xfc->descriptor->num_pages;
 	for(i=0; i < num_pages; i++) {
-		gnttab_set_unmap_op(&unmap_op, (unsigned long)(xfc->fifo_vmarea->addr + i*PAGE_SIZE), 
+		gnttab_set_unmap_op(&unmap_op, (unsigned long)(xfc->fifo_vmarea->addr + i*PAGE_SIZE),
 			GNTMAP_host_map, xfc->fhandles[i]);
 		ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
 		if( ret )
 			EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
 	}
 
-	gnttab_set_unmap_op(&unmap_op, (unsigned long)xfc->descriptor_vmarea->addr, 
+	gnttab_set_unmap_op(&unmap_op, (unsigned long)xfc->descriptor_vmarea->addr,
 			GNTMAP_host_map, xfc->dhandle);
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
 	if( ret )
@@ -288,4 +294,3 @@ err:
 	TRACE_ERROR;
 	return -1;
 }
-
