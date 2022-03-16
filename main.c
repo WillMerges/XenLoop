@@ -103,7 +103,7 @@ HashTable mac_domid_map;
 
 static char* nic = NULL;
 module_param(nic,charp,0660);
-MODULE_PARAM_DESC(nic, "NIC device used to communicate with dom0");
+// MODULE_PARAM_DESC(nic, "NIC device used to communicate with dom0");
 
 static int  write_xenstore(int status)
 {
