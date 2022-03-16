@@ -799,7 +799,7 @@ struct nf_hook_ops iphook_out_ops = {
 int net_init(void)
 {
 	int ret = 0, i;
-	char nic[5];
+	// char nic[5];
 
     struct net_device* dev;
 
