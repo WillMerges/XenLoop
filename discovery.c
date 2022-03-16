@@ -1,9 +1,9 @@
 /*
- *  XenLoop -- A High Performance Inter-VM Network Loopback 
+ *  XenLoop -- A High Performance Inter-VM Network Loopback
  *
  *  Installation and Usage instructions
  *
- *  Authors: 
+ *  Authors:
  *  	Jian Wang - Binghamton University (jianwang@cs.binghamton.edu)
  *  	Kartik Gopalan - Binghamton University (kartik@cs.binghamton.edu)
  *
@@ -63,22 +63,24 @@ static domid_t guest_domids[MAX_MAC_NUM];
 
 static struct task_struct *discover_thread;
 
+static char* nic = NULL;
+module_param(nic,charp,0660);
 
-int store_domid_mac(char* domid, char* mac) 
+int store_domid_mac(char* domid, char* mac)
 {
 	char *pEnd = mac;
 	int i;
-	
+
 	for (i=0; i < (ETH_ALEN-1); i++) {
 		guest_macs[num_of_macs][i] = simple_strtol(pEnd, &pEnd, 16);
 		pEnd++;
 	}
 
 	guest_macs[num_of_macs][ETH_ALEN-1] = simple_strtol(pEnd, NULL, 16);
-	
-	guest_domids[num_of_macs] = (domid_t)simple_strtoul(domid, NULL, 10);	
+
+	guest_domids[num_of_macs] = (domid_t)simple_strtoul(domid, NULL, 10);
 	num_of_macs++;
-	
+
 	return 0;
 }
 
@@ -130,7 +132,7 @@ static int probe_vifs(char *guest)
 			goto out2;
 		}
 
-		store_domid_mac(domid, macstr); 
+		store_domid_mac(domid, macstr);
 
 		kfree(macstr);
         }
@@ -141,7 +143,7 @@ out1:
 	kfree(guest_vif);
 out:
 	kfree(domid);
-	
+
 	TRACE_EXIT;
         return err;
 }
@@ -177,7 +179,7 @@ static int probe_domains(void)
 			kfree(path);
 			goto out;
 		}
-		
+
 		ret = xenbus_scanf(XBT_NIL, xenloop, "xenloop","%d", &status);
 		if (ret != 1) {
 			DB( "reading xenstore xenloop status failed, err = %d domainid = %s\n",ret, dir[i]);
@@ -187,9 +189,9 @@ static int probe_domains(void)
 			kfree(path);
 			continue;
 		}
-		
+
 		if (status)
-			probe_vifs(path); 
+			probe_vifs(path);
 
 		kfree(xenloop);
 		kfree(path);
@@ -206,14 +208,14 @@ out:
 
 
 
-inline void net_send(struct sk_buff * skb, u8 * dest) 
+inline void net_send(struct sk_buff * skb, u8 * dest)
 {
 	ethhdr * eth;
 	int ret;
 
 	TRACE_ENTRY;
-	
-	skb->network_header = 0; 
+
+	skb->network_header = 0;
 
 	skb->len = headers;
 	skb->data_len = 0;
@@ -226,7 +228,7 @@ inline void net_send(struct sk_buff * skb, u8 * dest)
 	eth 		= (ethhdr *) skb->data;
 	eth->h_proto 	= htons(ETH_P_TIDC);
 	memcpy(eth->h_dest, dest, ETH_ALEN);
-	
+
 	memcpy(eth->h_source, NIC->dev_addr, ETH_ALEN);
 
 	if((skb_shinfo(skb) == NULL)) {
@@ -235,8 +237,8 @@ inline void net_send(struct sk_buff * skb, u8 * dest)
 	}
 
 	SKB_LINEAR_ASSERT(skb);
-	
-	
+
+
 	if((ret = dev_queue_xmit(skb))) {
 		DB("Non-zero return code: %d %s", ret,
 		   skb_shinfo(skb) ? "good" : "bad");
@@ -247,7 +249,7 @@ inline void net_send(struct sk_buff * skb, u8 * dest)
 }
 
 
-static void send_mac(u8* dest) 
+static void send_mac(u8* dest)
 {
 	message_t *m;
 	struct sk_buff *skb;
@@ -263,25 +265,25 @@ static void send_mac(u8* dest)
 	m->mac_count = num_of_macs;
 	memcpy(m->mac, guest_macs, num_of_macs*ETH_ALEN);
  	memcpy(m->guest_domids, guest_domids, num_of_macs*sizeof(domid_t));
-	
+
 	net_send(skb, dest);
 
 	TRACE_EXIT;
 }
 
-static int update_guests(void *useless) 
+static int update_guests(void *useless)
 {
 	int i,ret;
 
 	TRACE_ENTRY;
 
         while(!kthread_should_stop()) {
-		num_of_macs = 0;	
+		num_of_macs = 0;
 		ret = probe_domains();
 		if (ret)  {
 			DB("Failed probe_domains, module not installed\n");
 		}
-	
+
 		if (num_of_macs > 1) {
 			for (i=0; i < num_of_macs; i++)
 				send_mac(guest_macs[i]);
@@ -300,11 +302,17 @@ static int __init discover_init(void)
 {
 	int ret = 0;
     struct net_device* dev;
-    
+
+	if(nic == NULL) {
+		EPRINTK("no NIC device name passed in as module parameter, exiting\n");
+		goto out;
+	}
+
 	TRACE_ENTRY;
 
 	//NIC = dev_get_by_name(&init_net, nic);
 
+	/*
     // TODO this is a spin lock, an rcu lock may be faster
     // this function is only called once however, so it's probably fine
     read_lock(&dev_base_lock);
@@ -319,7 +327,7 @@ static int __init discover_init(void)
            !(dev->flags & IFF_NOARP)) {
 
             printk(KERN_INFO "found device [%s]\n", dev->name);
-            
+
             dev_hold(dev); // needs to be freed by dev_put in exit function
             NIC = dev;
             break;
@@ -329,8 +337,10 @@ static int __init discover_init(void)
     }
 
     read_unlock(&dev_base_lock);
+	*/
 
-    
+	NIC = dev_get_by_name(&init_net, nic);
+
     if(!NIC) {
 		DB("discovery_init(): Could not find network card %s\n", nic);
 		ret = -ENODEV;
@@ -340,7 +350,7 @@ static int __init discover_init(void)
 	DPRINTK("Discovery module initialized. Using dom0 source MAC addr = " MAC_FMT " .\n", MAC_NTOA(NIC->dev_addr));
 
         discover_thread = kthread_run(update_guests, NULL, "discover");
-	
+
 out:
 	TRACE_EXIT;
 	return ret;
@@ -350,13 +360,13 @@ out:
 static void __exit discover_exit(void)
 {
 	TRACE_ENTRY;
-	
+
 	kthread_stop(discover_thread);
 
 	if(NIC) dev_put(NIC);
 
 	DPRINTK("Discovery module terminated\n");
-	
+
 	TRACE_EXIT;
 }
 
@@ -364,4 +374,3 @@ module_init(discover_init);
 module_exit(discover_exit);
 
 MODULE_LICENSE("GPL");
-

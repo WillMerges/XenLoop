@@ -101,6 +101,8 @@ DECLARE_WAIT_QUEUE_HEAD(pending_wq);
 
 HashTable mac_domid_map;
 
+static char* nic = NULL;
+module_param(nic,charp,0660);
 
 static int  write_xenstore(int status)
 {
@@ -701,7 +703,7 @@ static unsigned int iphook_out(
 	if (skb->len > 32768*8)  if_over++;
 
 
-        if (!neigh) {
+    if (!neigh) {
 		return NF_ACCEPT;
 	}
 
@@ -804,28 +806,28 @@ int net_init(void)
 
     // TODO this is a spin lock, an rcu lock may be faster
     // this function is only called once however, so it's probably fine
-    read_lock(&dev_base_lock);
-
-    dev = first_net_device(&init_net);
-    while(dev) {
-        // if an interface satisfies all of this, it's probably an active Ethernet NIC
-        if(dev->addr_len == ETH_ALEN &&
-           dev->flags & IFF_UP &&
-           dev->flags & IFF_RUNNING &&
-           !(dev->flags & IFF_LOOPBACK) &&
-           !(dev->flags & IFF_NOARP)) {
-            
-            printk(KERN_INFO "found device [%s]\n", dev->name);
-            
-            dev_hold(dev); // needs to be freed by dev_put in exit function
-            NIC = dev;
-            break;
-        }
-        
-        dev = next_net_device(dev);
-    }
-
-    read_unlock(&dev_base_lock);
+    // read_lock(&dev_base_lock);
+	//
+    // dev = first_net_device(&init_net);
+    // while(dev) {
+    //     // if an interface satisfies all of this, it's probably an active Ethernet NIC
+    //     if(dev->addr_len == ETH_ALEN &&
+    //        dev->flags & IFF_UP &&
+    //        dev->flags & IFF_RUNNING &&
+    //        !(dev->flags & IFF_LOOPBACK) &&
+    //        !(dev->flags & IFF_NOARP)) {
+	//
+    //         printk(KERN_INFO "found device [%s]\n", dev->name);
+	//
+    //         dev_hold(dev); // needs to be freed by dev_put in exit function
+    //         NIC = dev;
+    //         break;
+    //     }
+	//
+    //     dev = next_net_device(dev);
+    // }
+	//
+    // read_unlock(&dev_base_lock);
 
     /*
     for ( i=0; i<5; i++) {
@@ -834,6 +836,8 @@ int net_init(void)
 		if(NIC) break;
 	}
     */
+
+	NIC = dev_get_by_name(&init_net, nic);
 
 	if(!NIC) {
 		EPRINTK("Could not find network card %s\n", nic);
@@ -1027,6 +1031,11 @@ static void xenloop_exit(void)
 static int __init xenloop_init(void)
 {
 	int rc = 0;
+
+	if(nic == NULL) {
+		EPRINTK("no NIC device name passed in as module parameter, exiting\n");
+		goto out;
+	}
 
 	TRACE_ENTRY;
 
