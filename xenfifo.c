@@ -248,8 +248,8 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 
 err:
 	if(xfc) {
-		if(xfc->fifo_vmarea) vfree(xfc->fifo_vmarea);
-		if(xfc->descriptor_vmarea) vfree(xfc->descriptor_vmarea);
+		if(xfc->fifo_vmarea) kfree(xfc->fifo_vmarea);
+		if(xfc->descriptor_vmarea) kfree(xfc->descriptor_vmarea);
 		kfree(xfc);
 	}
 	TRACE_ERROR;
@@ -282,8 +282,8 @@ int xf_disconnect(xf_handle_t *xfc)
 	if( ret )
 		EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
 
-	vfree(xfc->descriptor_vmarea);
-	vfree(xfc->fifo_vmarea);
+	kfree(xfc->descriptor_vmarea);
+	kfree(xfc->fifo_vmarea);
 
 	kfree(xfc);
 
