@@ -349,7 +349,7 @@ static int __init discover_init(void)
 
 	DPRINTK("Discovery module initialized. Using dom0 source MAC addr = " MAC_FMT " .\n", MAC_NTOA(NIC->dev_addr));
 
-        discover_thread = kthread_run(update_guests, NULL, "discover");
+    discover_thread = kthread_run(update_guests, NULL, "discover");
 
 out:
 	TRACE_EXIT;
