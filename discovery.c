@@ -65,7 +65,7 @@ static struct task_struct *discover_thread;
 
 static char* nic = NULL;
 module_param(nic,charp,0660);
-MODULE_PARAM_DESC(nic, "NIC device used to communicate with domU's, may be a virtual bridge");
+// MODULE_PARAM_DESC(nic, "NIC device used to communicate with domU's, may be a virtual bridge");
 
 int store_domid_mac(char* domid, char* mac)
 {
