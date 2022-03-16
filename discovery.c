@@ -64,7 +64,8 @@ static domid_t guest_domids[MAX_MAC_NUM];
 static struct task_struct *discover_thread;
 
 static char* nic = NULL;
-module_param(nic,charp,0660);
+// module_param(nic,charp,0660);
+MODULE_PARM(nic, "s");
 
 int store_domid_mac(char* domid, char* mac)
 {
