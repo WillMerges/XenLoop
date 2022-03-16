@@ -64,8 +64,8 @@ static domid_t guest_domids[MAX_MAC_NUM];
 static struct task_struct *discover_thread;
 
 static char* nic = NULL;
-// module_param(nic,charp,0660);
-MODULE_PARM(nic, "s");
+module_param(nic,charp,0660);
+MODULE_PARAM_DESC(nic, "NIC device used to communicate with domU's, may be a virtual bridge");
 
 int store_domid_mac(char* domid, char* mac)
 {
