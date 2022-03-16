@@ -1034,7 +1034,7 @@ static int __init xenloop_init(void)
 
 	if(nic == NULL) {
 		EPRINTK("no NIC device name passed in as module parameter, exiting\n");
-		rc = -EBADPARAM;
+		rc = -ENOPARAM;
 		goto out;
 	}
 
