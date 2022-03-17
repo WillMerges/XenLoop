@@ -266,7 +266,7 @@ err:
 
 int xf_disconnect(xf_handle_t *xfc)
 {
-	gnttab_unmap_grant_ref_t unmap_op;
+	struct gnttab_unmap_grant_ref unmap_op;
 	int i, num_pages, ret;
 	TRACE_ENTRY;
 
