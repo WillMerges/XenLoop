@@ -1,9 +1,9 @@
 /*
- *  XenLoop -- A High Performance Inter-VM Network Loopback 
+ *  XenLoop -- A High Performance Inter-VM Network Loopback
  *
  *  Installation and Usage instructions
  *
- *  Authors: 
+ *  Authors:
  *  	Jian Wang - Binghamton University (jianwang@cs.binghamton.edu)
  *  	Kartik Gopalan - Binghamton University (kartik@cs.binghamton.edu)
  *
@@ -39,10 +39,10 @@
 #define	MAX_MAC_NUM	10
 #define MAX_RETRY_COUNT 5
 
-#define ETH_P_TIDC			0x8888	
-typedef struct timeval          timeval;
-typedef struct list_head        list_head;
-typedef struct page             page;
+#define ETH_P_TIDC			0x8888
+typedef struct timeval      timeval;
+typedef struct list_head    list_head;
+typedef struct page         page;
 typedef struct ethhdr 		ethhdr;
 typedef struct net_device 	net_device;
 typedef struct packet_type 	packet_type;
@@ -60,13 +60,12 @@ typedef struct message {
 	u8		type;
 	u8		mac_count;
 	u8		mac[MAX_MAC_NUM][ETH_ALEN];
-	domid_t 	domid;
-	domid_t	        guest_domids[MAX_MAC_NUM];
-	
+	domid_t domid;
+	domid_t	guest_domids[MAX_MAC_NUM];
+
 	int		gref_in;
 	int		gref_out;
 	int		remote_port;
-
 } message_t;
 
 typedef struct skb_queue{
@@ -81,4 +80,3 @@ typedef struct skb_queue{
 const int 		headers = LINK_HDR + MSGSIZE;
 
 #endif /* _MAIN_H_ */
-

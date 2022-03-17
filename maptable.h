@@ -1,9 +1,9 @@
 /*
- *  XenLoop -- A High Performance Inter-VM Network Loopback 
+ *  XenLoop -- A High Performance Inter-VM Network Loopback
  *
  *  Installation and Usage instructions
  *
- *  Authors: 
+ *  Authors:
  *  	Jian Wang - Binghamton University (jianwang@cs.binghamton.edu)
  *  	Kartik Gopalan - Binghamton University (kartik@cs.binghamton.edu)
  *
@@ -60,8 +60,8 @@ typedef struct Bucket {
 
 
 typedef struct HashTable {
-	ulong 		count,
-			buckets; 
+	ulong 		count;
+	ulong		buckets;
 	Bucket  	table[XENLOOP_HASH_SIZE];
 	struct kmem_cache* entries;
 } HashTable;
@@ -69,4 +69,4 @@ typedef struct HashTable {
 
 #define check_descriptor(bfh) (bfh && bfh->in && bfh->out && bfh->in->descriptor && bfh->out->descriptor)
 
-#endif /* _MAPTABLE_H_*/ 
+#endif /* _MAPTABLE_H_*/

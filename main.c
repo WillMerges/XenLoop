@@ -681,7 +681,9 @@ inline int xmit_packets(struct sk_buff *skb)
 
 	spin_unlock_irqrestore( &xmit_lock, flags );
 
-	notify_all_bfs(&mac_domid_map);
+	// TODO why is this hear? did we not already call bf_notify after copying the skb in?
+	// let's comment it out and see if it does anything
+	// notify_all_bfs(&mac_domid_map);
 
 	TRACE_EXIT;
 	return ret;
@@ -698,22 +700,27 @@ static unsigned int iphook_out(
 	int ret = NF_ACCEPT;
         // struct dst_entry *dst = skb->dst;
         // struct neighbour *neigh = dst->neighbour;
-	struct neighbour *neigh = dst_neigh_lookup_skb(skb_dst(skb), skb);
+	// TODO do we need to do this?
+	// can't we just look at eth_hdr of the skb
+	// struct neighbour *neigh = dst_neigh_lookup_skb(skb_dst(skb), skb);
+
+	u8* dst_mac = eth_hdr(skb)->h_dest;
 
 	if_total++;
 	if (skb->len > 32768*8)  if_over++;
 
 
-    if (!neigh) {
-		return NF_ACCEPT;
-	}
+    // if (!neigh) {
+	// 	return NF_ACCEPT;
+	// }
+	//
+	//
+	// if (!(neigh->nud_state & (NUD_CONNECTED|NUD_DELAY|NUD_PROBE) )) {
+	// 	return NF_ACCEPT;
+	// }
 
-
-	if (!(neigh->nud_state & (NUD_CONNECTED|NUD_DELAY|NUD_PROBE) )) {
-		return NF_ACCEPT;
-	}
-
-	if (!(e = lookup_table(&mac_domid_map, neigh->ha))) {
+	// if (!(e = lookup_table(&mac_domid_map, neigh->ha))) {
+	if(!(e = lookup_table(&mac_domid_map, dst_mac))) {
 		return NF_ACCEPT;
 	}
 
