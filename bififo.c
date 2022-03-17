@@ -433,6 +433,8 @@ bf_handle_t *bf_connect(domid_t rdomid, int rgref_in, int rgref_out, int rport)
 		goto err;
 	}
 
+	EPRINTK("made it passed xf_connect\n");
+
 	ret = bind_evtch(rdomid, rport, &bfc->port, &bfc->irq, (void *)bfc);
 	if(ret < 0) {
 		EPRINTK("Can't bind to event channel\n");
