@@ -251,11 +251,11 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 err:
 	if(xfc) {
 		if(xfc->fifo) {
-			free_pages(xfl->fifo, xfl->descriptor->num_pages);
+			free_pages((unsigned long)xfc->fifo, xfl->descriptor->num_pages);
 		}
 
 		if(xfc->descriptor) {
-			free_page(xfl->descriptor);
+			free_page((unsigned long)xfc->descriptor);
 		}
 
 		kfree(xfc);
