@@ -290,8 +290,8 @@ int xf_disconnect(xf_handle_t *xfc)
 	if( ret )
 		EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
 
-	free_pages(xfc->fifo, num_pages);
-	free_page(xfc->descriptor);
+	free_pages((unsigned long)xfc->fifo, num_pages);
+	free_page((unsigned long)xfc->descriptor);
 
 	kfree(xfc);
 
