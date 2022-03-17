@@ -302,7 +302,6 @@ static int update_guests(void *useless)
 static int __init discover_init(void)
 {
 	int ret = 0;
-    struct net_device* dev;
 
 	if(nic == NULL) {
 		EPRINTK("no NIC device name passed in as module parameter, exiting\n");
@@ -311,35 +310,6 @@ static int __init discover_init(void)
 	}
 
 	TRACE_ENTRY;
-
-	//NIC = dev_get_by_name(&init_net, nic);
-
-	/*
-    // TODO this is a spin lock, an rcu lock may be faster
-    // this function is only called once however, so it's probably fine
-    read_lock(&dev_base_lock);
-
-    dev = first_net_device(&init_net);
-    while(dev) {
-        // if an interface satisfies all of this, it's probably an active Ethernet NIC
-        if(dev->addr_len == ETH_ALEN &&
-           dev->flags & IFF_UP &&
-           dev->flags & IFF_RUNNING &&
-           !(dev->flags & IFF_LOOPBACK) &&
-           !(dev->flags & IFF_NOARP)) {
-
-            printk(KERN_INFO "found device [%s]\n", dev->name);
-
-            dev_hold(dev); // needs to be freed by dev_put in exit function
-            NIC = dev;
-            break;
-        }
-
-        dev = next_net_device(dev);
-    }
-
-    read_unlock(&dev_base_lock);
-	*/
 
 	NIC = dev_get_by_name(&init_net, nic);
 

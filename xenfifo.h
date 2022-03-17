@@ -1,9 +1,9 @@
 /*
- *  XenLoop -- A High Performance Inter-VM Network Loopback 
+ *  XenLoop -- A High Performance Inter-VM Network Loopback
  *
  *  Installation and Usage instructions
  *
- *  Authors: 
+ *  Authors:
  *  	Jian Wang - Binghamton University (jianwang@cs.binghamton.edu)
  *  	Kartik Gopalan - Binghamton University (kartik@cs.binghamton.edu)
  *
@@ -51,37 +51,37 @@
 #include "debug.h"
 
 #define MAX_FIFO_PAGES 64
-#define MAX_FIFO_PAGE_ORDER 6  
+#define MAX_FIFO_PAGE_ORDER 6
 
-/* 
- * Shared FIFO descriptor page 
+/*
+ * Shared FIFO descriptor page
  * 	sizeof(xf_descriptor_t) should be no bigger than PAGE_SIZE
  */
 struct xf_descriptor {
 	u8 suspended_flag;
-	unsigned int num_pages; 
-	int grefs[MAX_FIFO_PAGES]; /* grant references to FIFO pages -- Not too many 
+	unsigned int num_pages;
+	int grefs[MAX_FIFO_PAGES]; /* grant references to FIFO pages -- Not too many
 				      pages expected right now */
-	int dgref; 
-	uint16_t max_data_entries; /* Max 64K. Should be power of 2. */ 
-	uint32_t front, back; /* Range of these indices must be power of 2 
-				 and larger than max_data_entries.*/ 
-	uint32_t index_mask; 
+	int dgref;
+	uint16_t max_data_entries; /* Max 64K. Should be power of 2. */
+	uint32_t front, back; /* Range of these indices must be power of 2
+				 and larger than max_data_entries.*/
+	uint32_t index_mask;
 };
 typedef struct xf_descriptor xf_descriptor_t;
 
 struct xf_handle {
 
-	domid_t remote_id; 
+	domid_t remote_id;
 	xf_descriptor_t *descriptor;
-	void *fifo; 
-	int listen_flag; 
+	void *fifo;
+	int listen_flag;
 
-	
-	struct vm_struct *descriptor_vmarea;
-	grant_handle_t dhandle; 
-	struct vm_struct *fifo_vmarea;
-	grant_handle_t fhandles[MAX_FIFO_PAGES]; 
+
+	// struct vm_struct *descriptor_vmarea;
+	grant_handle_t dhandle;
+	// struct vm_struct *fifo_vmarea;
+	grant_handle_t fhandles[MAX_FIFO_PAGES];
 
 };
 typedef struct xf_handle xf_handle_t;
@@ -94,7 +94,7 @@ extern xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref);
 extern int xf_disconnect(xf_handle_t *xfc);
 
 /************** FUNCTIONS FOR BOTH LISTENER AND CONNECTOR ******************
- * Although it may be best if one side sticks to push/back and other to pop/front 
+ * Although it may be best if one side sticks to push/back and other to pop/front
  ****************************************************************************/
 
 static inline uint32_t xf_size(xf_handle_t *h)
@@ -119,10 +119,10 @@ static inline int xf_empty(xf_handle_t *h)
 }
 
 /*
- * Push a data value onto the back of the FIFO. 
+ * Push a data value onto the back of the FIFO.
  * Returns 0 on success, -1 on failure
  */
-static inline uint32_t xf_push(xf_handle_t *handle) 
+static inline uint32_t xf_push(xf_handle_t *handle)
 {
 	xf_descriptor_t *des = handle->descriptor;
 
@@ -130,16 +130,16 @@ static inline uint32_t xf_push(xf_handle_t *handle)
 		return -1;
 	}
 
-	des->back++; 
+	des->back++;
 
 	return 0;
 }
 
 /*
- * Push n data values onto the back of the FIFO. 
+ * Push n data values onto the back of the FIFO.
  * Returns 0 on success, -1 on failure
  */
-static inline uint32_t xf_pushn(xf_handle_t *handle, uint32_t n) 
+static inline uint32_t xf_pushn(xf_handle_t *handle, uint32_t n)
 {
 	xf_descriptor_t *des = handle->descriptor;
 
@@ -153,41 +153,41 @@ static inline uint32_t xf_pushn(xf_handle_t *handle, uint32_t n)
 }
 
 /*
- * Remove a data value from the front of the FIFO. 
+ * Remove a data value from the front of the FIFO.
  * Returns value is 0 on success, -1 on failure
  */
-static inline uint32_t xf_pop(xf_handle_t *handle) 
-{ 
+static inline uint32_t xf_pop(xf_handle_t *handle)
+{
 	xf_descriptor_t *des = handle->descriptor;
 
 	if( xf_empty(handle) ) {
 		return -1;
 	}
 
-	des->front++; 
+	des->front++;
 
 	return 0;
 }
 
 /*
- * Remove n data values from the front of the FIFO. 
+ * Remove n data values from the front of the FIFO.
  * Returns value is 0 on success, -1 on failure
  */
-static inline uint32_t xf_popn(xf_handle_t *handle, uint32_t n) 
-{ 
+static inline uint32_t xf_popn(xf_handle_t *handle, uint32_t n)
+{
 	xf_descriptor_t *des = handle->descriptor;
 
 	if( xf_size(handle) < n ) {
 		return -1;
 	}
 
-	des->front += n; 
+	des->front += n;
 
 	return 0;
 }
 
 /*
- * Return a reference to a free data value at the back of the FIFO. 
+ * Return a reference to a free data value at the back of the FIFO.
  * xf_back does not remove the data from the FIFO. Call xf_push to do so.
  * Returns  NULL if FIFO is FULL
  */
@@ -212,7 +212,7 @@ _xf_ret;								\
 )
 
 /*
- * Return a reference to the data value at the front of the FIFO. 
+ * Return a reference to the data value at the front of the FIFO.
  * xf_front does not remove the data from the FIFO. Call xf_pop to do so.
  * Returns  NULL if FIFO is empty
  */

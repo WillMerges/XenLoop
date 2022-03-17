@@ -76,13 +76,13 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 	memset(xfl, 0, sizeof(xf_handle_t));
 
 
-	xfl->descriptor = (xf_descriptor_t *) __get_free_page(GFP_KERNEL);
+	xfl->descriptor = (xf_descriptor_t *) __get_free_page(GFP_ATOMIC);
 	if(!xfl->descriptor) {
 		EPRINTK("Cannot allocate descriptor memory page for FIFO\n");
 		goto err;
 	}
 
-	xfl->fifo = (void *) __get_free_pages(GFP_KERNEL,page_order);
+	xfl->fifo = (void *) __get_free_pages(GFP_ATOMIC, page_order);
 	if(!xfl->fifo) {
 		EPRINTK("Cannot allocate buffer memory pages for FIFO\n");
 		goto err;
@@ -175,27 +175,23 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 	int i;
 	TRACE_ENTRY;
 
-	xfc = kmalloc(sizeof(xf_handle_t), GFP_KERNEL);
+	xfc = kmalloc(sizeof(xf_handle_t), GFP_ATOMIC);
 	if(!xfc) {
 		EPRINTK("Out of memory\n");
 		goto err;
 	}
 	memset(xfc, 0, sizeof(xf_handle_t));
 
-	// xfc->descriptor_vmarea = vmalloc(PAGE_SIZE);
-	// xfc->fifo_vmarea = vmalloc( MAX_FIFO_PAGES*PAGE_SIZE );
+	// allocate a page of our own for the descriptor
+	xfc->descriptor = (xf_descriptor_t*) __get_free_page(GFP_ATOMIC);
 
-	// NOTE: vmalloc is not allowed during an interrupt
-	// use atomic kmalloc instead
-	xfc->descriptor_vmarea = kmalloc(PAGE_SIZE, GFP_ATOMIC);
-	xfc->fifo_vmarea = kmalloc(PAGE_SIZE * MAX_FIFO_PAGES, GFP_ATOMIC);
-
-	if(!xfc->descriptor_vmarea || !xfc->fifo_vmarea) {
-		EPRINTK("error: cannot allocate memory for descriptor OR FIFO\n");
+	if(!xfc->descriptor) {
+		EPRINTK("Cannot allocate memory page for descriptor\n");
 		goto err;
 	}
 
-	gnttab_set_map_op(&map_op, (unsigned long)xfc->descriptor_vmarea->addr,
+	// map our descriptor page to the other guest VMs descriptor page they shared with us
+	gnttab_set_map_op(&map_op, (unsigned long)xfc->descriptor,
 				GNTMAP_host_map, remote_gref, remote_domid);
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, &map_op, 1);
 	if( ret || (map_op.status != GNTST_okay) ) {
@@ -205,14 +201,23 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 
 	xfc->listen_flag = 0;
 	xfc->remote_id = remote_domid;
-	xfc->descriptor = xfc->descriptor_vmarea->addr;
-	xfc->fifo = xfc->fifo_vmarea->addr;
+	//xfc->descriptor = xfc->descriptor_vmarea->addr;
+	//xfc->fifo = xfc->fifo_vmarea->addr;
+    xfc->fifo = xfc->fifo_vmarea;
 	xfc->dhandle = map_op.handle;
 
-	for(i=0; i < xfc->descriptor->num_pages; i++) {
+	// allocate our own pages for the FIFO based on the number of pages listed in the descriptor
+	xfc->fifo = (void*) __get_free_pages(GFP_ATOMIC, xfc->descriptor->num_pages);
 
+	if(!xfc->fifo) {
+		EPRINTK("Cannot allocate %u memory pages for FIFO\n", xfc->descriptor->num_pages);
+		goto err;
+	}
+
+	// map the guest VMs FIFO pages to our own pages
+	for(i=0; i < xfc->descriptor->num_pages; i++) {
 		gnttab_set_map_op(&map_op,
-				(unsigned long)(xfc->fifo_vmarea->addr + i*PAGE_SIZE),
+				(unsigned long)(xfc->fifo + i*PAGE_SIZE),
 				GNTMAP_host_map, xfc->descriptor->grefs[i], remote_domid);
 
 		ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, &map_op, 1);
@@ -223,7 +228,7 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 			EPRINTK("HYPERVISOR_grant_table_op failed ret = %d status = %d\n", ret, map_op.status);
 			while(--i >= 0) {
 				gnttab_set_unmap_op(&unmap_op,
-					(unsigned long)xfc->fifo_vmarea->addr + i*PAGE_SIZE,
+					(unsigned long)xfc->fifo + i*PAGE_SIZE,
 					GNTMAP_host_map, xfc->fhandles[i]);
 				ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
 				if( ret )
@@ -231,7 +236,7 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 			}
 
 			gnttab_set_unmap_op(&unmap_op,
-				(unsigned long)xfc->descriptor_vmarea->addr,
+				(unsigned long)xfc->descriptor,
 				GNTMAP_host_map, xfc->dhandle);
 			ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
 			if( ret )
@@ -248,8 +253,14 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 
 err:
 	if(xfc) {
-		if(xfc->fifo_vmarea) kfree(xfc->fifo_vmarea);
-		if(xfc->descriptor_vmarea) kfree(xfc->descriptor_vmarea);
+		if(xfc->fifo) {
+			free_pages(xfl->fifo, xfl->descriptor->num_pages);
+		}
+
+		if(xfc->descriptor) {
+			free_page(xfl->descriptor);
+		}
+
 		kfree(xfc);
 	}
 	TRACE_ERROR;

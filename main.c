@@ -798,45 +798,9 @@ struct nf_hook_ops iphook_out_ops = {
 
 int net_init(void)
 {
-	int ret = 0, i;
-	// char nic[5];
-
-    struct net_device* dev;
+	int ret = 0;
 
 	TRACE_ENTRY;
-
-    // TODO this is a spin lock, an rcu lock may be faster
-    // this function is only called once however, so it's probably fine
-    // read_lock(&dev_base_lock);
-	//
-    // dev = first_net_device(&init_net);
-    // while(dev) {
-    //     // if an interface satisfies all of this, it's probably an active Ethernet NIC
-    //     if(dev->addr_len == ETH_ALEN &&
-    //        dev->flags & IFF_UP &&
-    //        dev->flags & IFF_RUNNING &&
-    //        !(dev->flags & IFF_LOOPBACK) &&
-    //        !(dev->flags & IFF_NOARP)) {
-	//
-    //         printk(KERN_INFO "found device [%s]\n", dev->name);
-	//
-    //         dev_hold(dev); // needs to be freed by dev_put in exit function
-    //         NIC = dev;
-    //         break;
-    //     }
-	//
-    //     dev = next_net_device(dev);
-    // }
-	//
-    // read_unlock(&dev_base_lock);
-
-    /*
-    for ( i=0; i<5; i++) {
-		sprintf(nic, "eth%d", i);
-		NIC = dev_get_by_name(&init_net, nic);
-		if(NIC) break;
-	}
-    */
 
 	NIC = dev_get_by_name(&init_net, nic);
 
@@ -858,7 +822,6 @@ int net_init(void)
 		EPRINTK("can't register OUT hook.\n");
 		goto out;
 	}
-
 
 	dev_add_pack(&xenloop_ptype);
 
