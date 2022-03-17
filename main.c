@@ -702,25 +702,28 @@ static unsigned int iphook_out(
         // struct neighbour *neigh = dst->neighbour;
 	// TODO do we need to do this?
 	// can't we just look at eth_hdr of the skb
-	// struct neighbour *neigh = dst_neigh_lookup_skb(skb_dst(skb), skb);
+	struct neighbour *neigh = dst_neigh_lookup_skb(skb_dst(skb), skb);
 
-	u8* dst_mac = eth_hdr(skb)->h_dest;
+	// TODO just tried this, it didn't work
+	// LOL
+	// POST_ROUTING means the kernel has destined this packet for elsewhere, we can't hook after a full packet assembly (I think)
+	// u8* dst_mac = eth_hdr(skb)->h_dest;
 
 	if_total++;
 	if (skb->len > 32768*8)  if_over++;
 
 
-    // if (!neigh) {
-	// 	return NF_ACCEPT;
-	// }
-	//
-	//
-	// if (!(neigh->nud_state & (NUD_CONNECTED|NUD_DELAY|NUD_PROBE) )) {
-	// 	return NF_ACCEPT;
-	// }
+    if (!neigh) {
+		return NF_ACCEPT;
+	}
 
-	// if (!(e = lookup_table(&mac_domid_map, neigh->ha))) {
-	if(!(e = lookup_table(&mac_domid_map, dst_mac))) {
+
+	if (!(neigh->nud_state & (NUD_CONNECTED|NUD_DELAY|NUD_PROBE) )) {
+		return NF_ACCEPT;
+	}
+
+	if (!(e = lookup_table(&mac_domid_map, neigh->ha))) {
+	// if(!(e = lookup_table(&mac_domid_map, dst_mac))) {
 		return NF_ACCEPT;
 	}
 
