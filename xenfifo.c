@@ -201,9 +201,6 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 
 	xfc->listen_flag = 0;
 	xfc->remote_id = remote_domid;
-	//xfc->descriptor = xfc->descriptor_vmarea->addr;
-	//xfc->fifo = xfc->fifo_vmarea->addr;
-    xfc->fifo = xfc->fifo_vmarea;
 	xfc->dhandle = map_op.handle;
 
 	// allocate our own pages for the FIFO based on the number of pages listed in the descriptor
@@ -269,32 +266,32 @@ err:
 
 int xf_disconnect(xf_handle_t *xfc)
 {
-	struct gnttab_unmap_grant_ref unmap_op;
+	gnttab_unmap_grant_ref_t unmap_op;
 	int i, num_pages, ret;
 	TRACE_ENTRY;
 
-	if(!xfc || !xfc->descriptor_vmarea || !xfc->descriptor || !xfc->fifo_vmarea || !xfc->fifo) {
+	if(!xfc || !xfc->descriptor || !xfc->fifo) {
 		EPRINTK("Something is NULL\n");
 		goto err;
 	}
 
 	num_pages = xfc->descriptor->num_pages;
 	for(i=0; i < num_pages; i++) {
-		gnttab_set_unmap_op(&unmap_op, (unsigned long)(xfc->fifo_vmarea->addr + i*PAGE_SIZE),
+		gnttab_set_unmap_op(&unmap_op, (unsigned long)(xfc->fifo + i*PAGE_SIZE),
 			GNTMAP_host_map, xfc->fhandles[i]);
 		ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
 		if( ret )
 			EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
 	}
 
-	gnttab_set_unmap_op(&unmap_op, (unsigned long)xfc->descriptor_vmarea->addr,
+	gnttab_set_unmap_op(&unmap_op, (unsigned long)xfc->descriptor,
 			GNTMAP_host_map, xfc->dhandle);
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
 	if( ret )
 		EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
 
-	kfree(xfc->descriptor_vmarea);
-	kfree(xfc->fifo_vmarea);
+	free_pages(xfc->fifo, num_pages);
+	free_page(xfc->descriptor);
 
 	kfree(xfc);
 
