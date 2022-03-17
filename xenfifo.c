@@ -183,7 +183,7 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 	memset(xfc, 0, sizeof(xf_handle_t));
 
 	// allocate a page of our own for the descriptor
-	xfc->descriptor = (xf_descriptor_t*) __get_free_page(GFP_ATOMIC);
+	xfc->descriptor = (xf_descriptor_t*) kmalloc(GFP_ATOMIC, PAGE_SIZE);
 
 	if(!xfc->descriptor) {
 		EPRINTK("Cannot allocate memory page for descriptor\n");
@@ -204,7 +204,7 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 	xfc->dhandle = map_op.handle;
 
 	// allocate our own pages for the FIFO based on the number of pages listed in the descriptor
-	xfc->fifo = (void*) __get_free_pages(GFP_ATOMIC, xfc->descriptor->num_pages);
+	xfc->fifo = (void*) kmalloc(GFP_ATOMIC, xfc->descriptor->num_pages * PAGE_SIZE);
 
 	if(!xfc->fifo) {
 		EPRINTK("Cannot allocate %u memory pages for FIFO\n", xfc->descriptor->num_pages);
@@ -251,11 +251,13 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 err:
 	if(xfc) {
 		if(xfc->fifo) {
-			free_pages((unsigned long)xfc->fifo, xfc->descriptor->num_pages);
+			// free_pages((unsigned long)xfc->fifo, xfc->descriptor->num_pages);
+			kfree(xfc->fifo);
 		}
 
 		if(xfc->descriptor) {
-			free_page((unsigned long)xfc->descriptor);
+			// free_page((unsigned long)xfc->descriptor);
+			kfree(xfc->descriptor);
 		}
 
 		kfree(xfc);
@@ -290,8 +292,10 @@ int xf_disconnect(xf_handle_t *xfc)
 	if( ret )
 		EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
 
-	free_pages((unsigned long)xfc->fifo, num_pages);
-	free_page((unsigned long)xfc->descriptor);
+	// free_pages((unsigned long)xfc->fifo, num_pages);
+	// free_page((unsigned long)xfc->descriptor);
+	kfree(xfc->fifo);
+	kfree(xfc->descriptor);
 
 	kfree(xfc);
 
