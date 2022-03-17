@@ -735,7 +735,7 @@ static unsigned int iphook_out(
 			return NF_ACCEPT;
 
 		case XENLOOP_STATUS_CONNECTED:
-			DPRINTK("packet transmitted through Xenloop\n");;
+			// DPRINTK("packet transmitted through Xenloop\n");
 			if( xmit_packets(skb) < 0  ) {
 				EPRINTK("Couldn't send packet via bififo. Using network instead\n");
 				ret = NF_ACCEPT;
