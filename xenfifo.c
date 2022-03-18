@@ -151,8 +151,12 @@ int xf_destroy(xf_handle_t *xfl)
 		gnttab_end_foreign_access_ref(xfl->descriptor->grefs[i], 0);
 	gnttab_end_foreign_access_ref(xfl->descriptor->dgref, 0);
 
+	DPRINTK("free_pages / kfree in xf_destroy\n");
+
 	free_pages((unsigned long)xfl->fifo, get_order(xfl->descriptor->num_pages*PAGE_SIZE));
 	free_page((unsigned long)xfl->descriptor);
+
+	kfree(xfl);
 
 	TRACE_EXIT;
 	return 0;
@@ -294,6 +298,8 @@ int xf_disconnect(xf_handle_t *xfc)
 
 	// free_pages((unsigned long)xfc->fifo, num_pages);
 	// free_page((unsigned long)xfc->descriptor);
+	DPRINTK("kfree in xf_disconnect\n");
+
 	kfree(xfc->fifo);
 	kfree(xfc->descriptor);
 
