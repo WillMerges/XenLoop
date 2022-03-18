@@ -300,8 +300,10 @@ int xf_disconnect(xf_handle_t *xfc)
 	// free_page((unsigned long)xfc->descriptor);
 	DPRINTK("kfree in xf_disconnect\n");
 
-	kfree(xfc->fifo);
-	kfree(xfc->descriptor);
+	kvfree(xfc->fifo);
+	// BUG here
+	// kernel panic when xfc->descriptor is freed
+	kvfree(xfc->descriptor);
 	//
 	// kfree(xfc);
 
