@@ -325,6 +325,6 @@ void clean_table(HashTable * ht)
 		}
 	}
 
-    // kmem_cache_destroy(ht->entries);
+    kmem_cache_destroy(ht->entries);
 	//BUG_ON(kmem_cache_destroy(ht->entries));
 }
