@@ -668,8 +668,11 @@ inline int xmit_packets(struct sk_buff *skb)
 
 		rc = xmit_large_pkt(skb, e->bfh->out);
 
+		// TODO this used to be under if rc < 0, why would not notify everyone we sent a packet too???
+		// seems silly
+		bf_notify(e->bfh->port);
+
 		if (rc < 0) {
-			bf_notify(e->bfh->port);
 			wake_up_interruptible(&pending_wq);
 			break;
 		}
@@ -683,7 +686,7 @@ inline int xmit_packets(struct sk_buff *skb)
 
 	// TODO why is this hear? did we not already call bf_notify after copying the skb in?
 	// let's comment it out and see if it does anything
-	notify_all_bfs(&mac_domid_map);
+	// notify_all_bfs(&mac_domid_map);
 
 	TRACE_EXIT;
 	return ret;

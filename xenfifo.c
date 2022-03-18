@@ -300,10 +300,10 @@ int xf_disconnect(xf_handle_t *xfc)
 	// free_page((unsigned long)xfc->descriptor);
 	DPRINTK("kfree in xf_disconnect\n");
 
-	kfree(xfc->fifo);
-	kfree(xfc->descriptor);
-
-	kfree(xfc);
+	// kfree(xfc->fifo);
+	// kfree(xfc->descriptor);
+	//
+	// kfree(xfc);
 
 	TRACE_EXIT;
 	return 0;
