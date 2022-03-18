@@ -110,7 +110,7 @@ static int  write_xenstore(int status)
 	int err = 1;
 
 	err = xenbus_printf(XBT_NIL, "xenloop", "xenloop","%d", status);
-        if (err) {
+    if (err) {
 		EPRINTK( "writing xenstore xenloop status failed, err = %d \n", err);
 	}
 	return err;
@@ -1041,7 +1041,7 @@ static int __init xenloop_init(void)
 		goto out;
 	}
 
-	if(write_xenstore(1) < != 1) {
+	if(write_xenstore(1)) {
 		EPRINTK("Failed to write to xenstore, permissions error?\n");
 		clean_table(&mac_domid_map);
 		goto out;
