@@ -307,6 +307,8 @@ int xf_disconnect(xf_handle_t *xfc)
 	//
 	// kfree(xfc);
 
+	DPRINTK("memory freed!\n");
+
 	TRACE_EXIT;
 	return 0;
 
