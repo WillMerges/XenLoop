@@ -301,6 +301,9 @@ int xf_disconnect(xf_handle_t *xfc)
 	// free_page((unsigned long)xfc->descriptor);
 	DPRINTK("kfree in xf_disconnect\n");
 
+	// according to KEDR (leak check tool) these pages are not being freed
+	// but maybe it's a weird xen thing, idk
+
 	// TODO I "think" that you don't need to explicitly free pages that were mapped to a different guest
 	// I think unmap hypercall takes care of it??? I have no idea though
 	// those pages just kind *poof*
