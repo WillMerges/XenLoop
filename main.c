@@ -1041,7 +1041,11 @@ static int __init xenloop_init(void)
 		goto out;
 	}
 
-	write_xenstore(1);
+	if(write_xenstore(1) < != 1) {
+		EPRINTK("Failed to write to xenstore, permissions error?\n");
+		clean_table(&mac_domid_map);
+		goto out;
+	}
 
 	rc = register_xenbus_watch(&suspend_resume_watch);
         if (rc) {
