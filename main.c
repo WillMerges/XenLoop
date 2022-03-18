@@ -683,7 +683,7 @@ inline int xmit_packets(struct sk_buff *skb)
 
 	// TODO why is this hear? did we not already call bf_notify after copying the skb in?
 	// let's comment it out and see if it does anything
-	// notify_all_bfs(&mac_domid_map);
+	notify_all_bfs(&mac_domid_map);
 
 	TRACE_EXIT;
 	return ret;
