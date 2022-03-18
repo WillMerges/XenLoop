@@ -634,7 +634,9 @@ void clean_pending(skb_queue_t *Q) {
 	}
 }
 
-
+// TODO just pass Entry e to this function?
+// sometimes this get's passed NULL to just empty the queue out
+// queue will fill up if xmit_large_pkt returns some error
 inline int xmit_packets(struct sk_buff *skb)
 {
 	static DEFINE_SPINLOCK(xmit_lock);
@@ -656,6 +658,7 @@ inline int xmit_packets(struct sk_buff *skb)
 		}
 	}
 
+	DPRINTK("count of out queue: %u\n", out_queue.count);
 	while (out_queue.count > 0) {
 		int rc;
 		Entry *e;
@@ -668,11 +671,10 @@ inline int xmit_packets(struct sk_buff *skb)
 
 		rc = xmit_large_pkt(skb, e->bfh->out);
 
-		// TODO this used to be under if rc < 0, why would not notify everyone we sent a packet too???
-		// seems silly
-		bf_notify(e->bfh->port);
+		DPRINTK("rc: %d\n", rc);
 
 		if (rc < 0) {
+			bf_notify(e->bfh->port);
 			wake_up_interruptible(&pending_wq);
 			break;
 		}
@@ -684,9 +686,10 @@ inline int xmit_packets(struct sk_buff *skb)
 
 	spin_unlock_irqrestore( &xmit_lock, flags );
 
-	// TODO why is this hear? did we not already call bf_notify after copying the skb in?
+	// TODO why is this here? did we not already call bf_notify after copying the skb in?
 	// let's comment it out and see if it does anything
-	// notify_all_bfs(&mac_domid_map);
+	// I'm assuming we have to wait to send the notify?
+	notify_all_bfs(&mac_domid_map);
 
 	TRACE_EXIT;
 	return ret;
