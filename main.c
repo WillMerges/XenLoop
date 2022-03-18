@@ -672,15 +672,15 @@ inline int xmit_packets(struct sk_buff *skb)
 
 		rc = xmit_large_pkt(skb, e->bfh->out);
 
-		// DPRINTK("rc: %d\n", rc);
+		DPRINTK("rc: %d\n", rc);
 
 		if (rc < 0) {
-			EPRINTK("xmit_large_pkt failed: %d\n", rc);
+			// EPRINTK("xmit_large_pkt failed: %d\n", rc);
 			// TODO this seems dangerous, I think calling bf_notify here could lock the CPU (since we're in irqsave)
 			// we're disabling interrupts and then calling a hypercall in bf_notify, we'll probably lose the return and get stuck :(
 			// why do we even need a notify here in the first place? the xmit_pending thread will just call this function again
 			// we haven't transmitted any data, so why tell the other guest we did? seems silly, but maybe I'm wrong
-			// bf_notify(e->bfh->port);
+			bf_notify(e->bfh->port);
 			wake_up_interruptible(&pending_wq);
 			break;
 		}
