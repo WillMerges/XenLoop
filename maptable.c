@@ -106,7 +106,7 @@ inline void remove_entry(HashTable *ht, Entry *e, struct list_head *x) {
 		del_timer(&e->ack_timer);
 	}
 
-	// kmem_cache_free(ht->entries, e);
+	kmem_cache_free(ht->entries, e);
 	DPRINTK("Delete Guest: deleted one guest mac =" MAC_FMT " Domid = %d.\n", \
 		 MAC_NTOA(e->mac), e->domid);
 	TRACE_EXIT;
@@ -325,6 +325,6 @@ void clean_table(HashTable * ht)
 		}
 	}
 
-    kmem_cache_destroy(ht->entries);
+    // kmem_cache_destroy(ht->entries);
 	//BUG_ON(kmem_cache_destroy(ht->entries));
 }
