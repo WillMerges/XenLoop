@@ -1012,7 +1012,7 @@ static int __init xenloop_init(void)
 
 	if(nic == NULL) {
 		EPRINTK("no NIC device name passed in as module parameter, exiting\n");
-		rc = -ENOPARAM;
+		rc = -EINVAL;
 		goto out;
 	}
 
@@ -1041,7 +1041,7 @@ static int __init xenloop_init(void)
 		goto out;
 	}
 
-	if(write_xenstore(1)) {
+	if((rc = write_xenstore(1))) {
 		EPRINTK("Failed to write to xenstore, permissions error?\n");
 		clean_table(&mac_domid_map);
 		goto out;
