@@ -301,7 +301,7 @@ int xf_disconnect(xf_handle_t *xfc)
 	DPRINTK("kfree in xf_disconnect\n");
 
 	kfree(xfc->fifo);
-	// kfree(xfc->descriptor);
+	kfree(xfc->descriptor);
 	//
 	// kfree(xfc);
 
