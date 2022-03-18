@@ -187,7 +187,8 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 	memset(xfc, 0, sizeof(xf_handle_t));
 
 	// allocate a page of our own for the descriptor
-	xfc->descriptor = (xf_descriptor_t*) kmalloc(PAGE_SIZE, GFP_ATOMIC);
+	// xfc->descriptor = (xf_descriptor_t*) kmalloc(PAGE_SIZE, GFP_ATOMIC);
+	xfc->descriptor = (xf_descriptor_t*) __get_free_page(GFP_ATOMIC);
 
 	if(!xfc->descriptor) {
 		EPRINTK("Cannot allocate memory page for descriptor\n");
@@ -260,8 +261,8 @@ err:
 		}
 
 		if(xfc->descriptor) {
-			// free_page((unsigned long)xfc->descriptor);
-			kfree(xfc->descriptor);
+			free_page((unsigned long)xfc->descriptor);
+			// kfree(xfc->descriptor);
 		}
 
 		kfree(xfc);
@@ -300,10 +301,11 @@ int xf_disconnect(xf_handle_t *xfc)
 	// free_page((unsigned long)xfc->descriptor);
 	DPRINTK("kfree in xf_disconnect\n");
 
-	kvfree(xfc->fifo);
+	kfree(xfc->fifo);
 	// BUG here
 	// kernel panic when xfc->descriptor is freed
-	kvfree(xfc->descriptor);
+	// kfree(xfc->descriptor);
+	free_page((unsigned long)xfc->descriptor);
 	//
 	// kfree(xfc);
 
