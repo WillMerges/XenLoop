@@ -680,7 +680,7 @@ inline int xmit_packets(struct sk_buff *skb)
 			// we're disabling interrupts and then calling a hypercall in bf_notify, we'll probably lose the return and get stuck :(
 			// why do we even need a notify here in the first place? the xmit_pending thread will just call this function again
 			// we haven't transmitted any data, so why tell the other guest we did? seems silly, but maybe I'm wrong
-			bf_notify(e->bfh->port);
+			// bf_notify(e->bfh->port);
 			wake_up_interruptible(&pending_wq);
 			break;
 		}
@@ -693,7 +693,7 @@ inline int xmit_packets(struct sk_buff *skb)
 	spin_unlock_irqrestore( &xmit_lock, flags );
 
 	// TODO why is this here? did we not already call bf_notify after copying the skb in?
-	// let's comment it out and see if it does anything
+	// let's comment it out and see if it does anything - NOTE: it broke :( see above
 	// I'm assuming we have to wait to send the notify?
 	notify_all_bfs(&mac_domid_map);
 
@@ -721,6 +721,7 @@ static unsigned int iphook_out(
 	// POST_ROUTING means the kernel has destined this packet for elsewhere, we can't hook after a full packet assembly (I think)
 	// u8* dst_mac = eth_hdr(skb)->h_dest;
 
+	// TODO this seems to be just debugging info, remove
 	if_total++;
 	if (skb->len > 32768*8)  if_over++;
 
