@@ -236,7 +236,7 @@ void free_evtch(int port, int irq, void *dev_id)
 		op.port = port;
 		ret = HYPERVISOR_event_channel_op(EVTCHNOP_close, &op);
 		if ( ret != 0 )
-			EPRINTK("Unable to cleanly close event channel\n");
+			EPRINTK("Unable to cleanly close event channel, err: %d\n", ret);
 	}
 
 	TRACE_EXIT;

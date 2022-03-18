@@ -658,7 +658,7 @@ inline int xmit_packets(struct sk_buff *skb)
 		}
 	}
 
-	DPRINTK("count of out queue: %u\n", out_queue.count);
+	// DPRINTK("count of out queue: %u\n", out_queue.count);
 	while (out_queue.count > 0) {
 		int rc;
 		Entry *e;
@@ -666,14 +666,20 @@ inline int xmit_packets(struct sk_buff *skb)
 		skb = out_queue.head;
 		BUG_ON(!skb);
 
+		// TODO store skb and entry together? so we don't have to do this lookup
 		e = lookup_table(&mac_domid_map, dst_neigh_lookup_skb(skb_dst(skb), skb)->ha);
 		BUG_ON(!e);
 
 		rc = xmit_large_pkt(skb, e->bfh->out);
 
-		DPRINTK("rc: %d\n", rc);
+		// DPRINTK("rc: %d\n", rc);
 
 		if (rc < 0) {
+			EPRINTK("xmit_large_pkt failed: %d\n", rc);
+			// TODO this seems dangerous, I think calling bf_notify here could lock the CPU (since we're in irqsave)
+			// we're disabling interrupts and then calling a hypercall in bf_notify, we'll probably lose the return and get stuck :(
+			// why do we even need a notify here in the first place? the xmit_pending thread will just call this function again
+			// we haven't transmitted any data, so why tell the other guest we did? seems silly, but maybe I'm wrong
 			bf_notify(e->bfh->port);
 			wake_up_interruptible(&pending_wq);
 			break;
