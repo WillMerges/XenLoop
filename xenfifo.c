@@ -304,13 +304,14 @@ int xf_disconnect(xf_handle_t *xfc)
 	// TODO I "think" that you don't need to explicitly free pages that were mapped to a different guest
 	// I think unmap hypercall takes care of it??? I have no idea though
 	// those pages just kind *poof*
+	// maybe we gotta kfree first?
 
 	// kfree(xfc->fifo);
 	// BUG here
 	// kernel panic when xfc->descriptor is freed
 	// kfree(xfc->descriptor);
 
-	kfree(xfc);
+	// kfree(xfc);
 
 	DPRINTK("memory freed!\n");
 
