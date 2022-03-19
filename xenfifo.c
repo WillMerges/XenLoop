@@ -282,6 +282,7 @@ int xf_disconnect(xf_handle_t *xfc)
 		goto err;
 	}
 
+	/*
 	num_pages = xfc->descriptor->num_pages;
 	for(i=0; i < num_pages; i++) {
 		gnttab_set_unmap_op(&unmap_op, (unsigned long)(xfc->fifo + i*PAGE_SIZE),
@@ -296,6 +297,7 @@ int xf_disconnect(xf_handle_t *xfc)
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
 	if( ret )
 		EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
+	*/
 
 	// free_pages((unsigned long)xfc->fifo, num_pages);
 	// free_page((unsigned long)xfc->descriptor);
@@ -309,10 +311,12 @@ int xf_disconnect(xf_handle_t *xfc)
 	// those pages just kind *poof*
 	// maybe we gotta kfree first?
 
-	// kfree(xfc->fifo);
+	DPRINTK("fifo: %p, descriptor: %p, xfc: %p\n", xfc->fifo, xfc->descriptor, xfc);
+
+	kfree(xfc->fifo);
 	// BUG here
 	// kernel panic when xfc->descriptor is freed
-	// kfree(xfc->descriptor);
+	kfree(xfc->descriptor);
 
 	kfree(xfc);
 
