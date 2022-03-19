@@ -141,6 +141,9 @@ int xf_destroy(xf_handle_t *xfl)
 {
 	int i;
 	unsigned int num_pages;
+	int grefs[MAX_FIFO_PAGES];
+	int dgref;
+
 	TRACE_ENTRY;
 
 	if(!xfl || !xfl->descriptor || !xfl->fifo) {
@@ -150,16 +153,30 @@ int xf_destroy(xf_handle_t *xfl)
 
 	num_pages = xfl->descriptor->num_pages;
 
-	for(i=0; i < xfl->descriptor->num_pages; i++)
-		gnttab_end_foreign_access_ref(xfl->descriptor->grefs[i], 0);
-	gnttab_end_foreign_access_ref(xfl->descriptor->dgref, 0);
-
-	DPRINTK("free_pages / kfree in xf_destroy\n");
+	// copy grefs so we can free the descriptor but still have the grefs
+	for(i=0; i < num_pages; i++) {
+		grefs[i] = xfl->descriptor->grefs[i];
+	}
+	dgref = xfl->descriptor->dgref;
 
 	free_pages((unsigned long)xfl->fifo, xfl->descriptor->num_pages * PAGE_SIZE);
 	free_page((unsigned long)xfl->descriptor);
-
 	kfree(xfl);
+
+	// for(i=0; i < xfl->descriptor->num_pages; i++)
+		// gnttab_end_foreign_access_ref(xfl->descriptor->grefs[i], 0);
+	for(i=0; i < num_pages; i++) {
+		gnttab_end_foreign_access_ref(grefs[i], 0);
+	}
+	// gnttab_end_foreign_access_ref(xfl->descriptor->dgref, 0);
+	gnttab_end_foreign_access_ref(dgref, 0);
+
+	DPRINTK("free_pages / kfree in xf_destroy\n");
+
+	// free_pages((unsigned long)xfl->fifo, xfl->descriptor->num_pages * PAGE_SIZE);
+	// free_page((unsigned long)xfl->descriptor);
+
+	// kfree(xfl);
 
 	TRACE_EXIT;
 	return 0;
@@ -287,13 +304,13 @@ int xf_disconnect(xf_handle_t *xfc)
 
 	num_pages = xfc->descriptor->num_pages;
 
-
 	DPRINTK("fifo: %p, descriptor: %p, xfc: %p\n", xfc->fifo, xfc->descriptor, xfc);
 	kfree(xfc->fifo);
-	// BUG here
-	// kernel panic when xfc->descriptor is freed
 	kfree((void*)(xfc->descriptor));
+
 	DPRINTK("memory freed\n");
+
+	// I think this unmap op sets the page as unusable or something so we have to free it first
 
 	for(i=0; i < num_pages; i++) {
 		gnttab_set_unmap_op(&unmap_op, (unsigned long)(xfc->fifo + i*PAGE_SIZE),
