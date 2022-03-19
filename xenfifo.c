@@ -140,6 +140,7 @@ err:
 int xf_destroy(xf_handle_t *xfl)
 {
 	int i;
+	unsigned int num_pages;
 	TRACE_ENTRY;
 
 	if(!xfl || !xfl->descriptor || !xfl->fifo) {
@@ -147,13 +148,15 @@ int xf_destroy(xf_handle_t *xfl)
 		goto err;
 	}
 
+	num_pages = xfl->descriptor->num_pages;
+
 	for(i=0; i < xfl->descriptor->num_pages; i++)
 		gnttab_end_foreign_access_ref(xfl->descriptor->grefs[i], 0);
 	gnttab_end_foreign_access_ref(xfl->descriptor->dgref, 0);
 
 	DPRINTK("free_pages / kfree in xf_destroy\n");
 
-	free_pages((unsigned long)xfl->fifo, get_order(xfl->descriptor->num_pages*PAGE_SIZE));
+	free_pages((unsigned long)xfl->fifo, xfl->descriptor->num_pages * PAGE_SIZE);
 	free_page((unsigned long)xfl->descriptor);
 
 	kfree(xfl);
@@ -290,7 +293,6 @@ int xf_disconnect(xf_handle_t *xfc)
 	// BUG here
 	// kernel panic when xfc->descriptor is freed
 	kfree((void*)(xfc->descriptor));
-	kfree((void*)xfc);
 	DPRINTK("memory freed\n");
 
 	for(i=0; i < num_pages; i++) {
@@ -328,6 +330,7 @@ int xf_disconnect(xf_handle_t *xfc)
 	// kfree((void*)xfc);
 
 	// DPRINTK("memory freed!\n");
+	kfree((void*)xfc);
 
 	DPRINTK("end of xf_disconnect\n");
 
