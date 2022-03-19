@@ -283,6 +283,16 @@ int xf_disconnect(xf_handle_t *xfc)
 	}
 
 	num_pages = xfc->descriptor->num_pages;
+
+
+	DPRINTK("fifo: %p, descriptor: %p, xfc: %p\n", xfc->fifo, xfc->descriptor, xfc);
+	kfree(xfc->fifo);
+	// BUG here
+	// kernel panic when xfc->descriptor is freed
+	kfree((void*)(xfc->descriptor));
+	kfree((void*)xfc);
+	DPRINTK("memory freed\n");
+
 	for(i=0; i < num_pages; i++) {
 		gnttab_set_unmap_op(&unmap_op, (unsigned long)(xfc->fifo + i*PAGE_SIZE),
 			GNTMAP_host_map, xfc->fhandles[i]);
@@ -299,7 +309,7 @@ int xf_disconnect(xf_handle_t *xfc)
 
 	// free_pages((unsigned long)xfc->fifo, num_pages);
 	// free_page((unsigned long)xfc->descriptor);
-	DPRINTK("kfree in xf_disconnect\n");
+	// DPRINTK("kfree in xf_disconnect\n");
 
 	// according to KEDR (leak check tool) these pages are not being freed
 	// but maybe it's a weird xen thing, idk
@@ -309,16 +319,17 @@ int xf_disconnect(xf_handle_t *xfc)
 	// those pages just kind *poof*
 	// maybe we gotta kfree first?
 
-	DPRINTK("fifo: %p, descriptor: %p, xfc: %p\n", xfc->fifo, xfc->descriptor, xfc);
+	// DPRINTK("fifo: %p, descriptor: %p, xfc: %p\n", xfc->fifo, xfc->descriptor, xfc);
+	//
+	// kfree(xfc->fifo);
+	// // BUG here
+	// // kernel panic when xfc->descriptor is freed
+	// kfree((void*)(xfc->descriptor));
+	// kfree((void*)xfc);
 
-	kfree(xfc->fifo);
-	// BUG here
-	// kernel panic when xfc->descriptor is freed
-	kfree((void*)(xfc->descriptor));
+	// DPRINTK("memory freed!\n");
 
-	kfree((void*)xfc);
-
-	DPRINTK("memory freed!\n");
+	DPRINTK("end of xf_disconnect\n");
 
 	TRACE_EXIT;
 	return 0;
