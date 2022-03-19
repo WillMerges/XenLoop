@@ -147,11 +147,13 @@ int xf_destroy(xf_handle_t *xfl)
 		goto err;
 	}
 
+	/*
 	for(i=0; i < xfl->descriptor->num_pages; i++)
 		gnttab_end_foreign_access_ref(xfl->descriptor->grefs[i], 0);
 	gnttab_end_foreign_access_ref(xfl->descriptor->dgref, 0);
 
 	DPRINTK("free_pages / kfree in xf_destroy\n");
+	*/
 
 	free_pages((unsigned long)xfl->fifo, get_order(xfl->descriptor->num_pages*PAGE_SIZE));
 	free_page((unsigned long)xfl->descriptor);
