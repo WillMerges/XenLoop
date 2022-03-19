@@ -314,9 +314,9 @@ int xf_disconnect(xf_handle_t *xfc)
 	kfree(xfc->fifo);
 	// BUG here
 	// kernel panic when xfc->descriptor is freed
-	kfree(xfc->descriptor);
+	kfree((void*)(xfc->descriptor));
 
-	kfree(xfc);
+	kfree((void*)xfc);
 
 	DPRINTK("memory freed!\n");
 
