@@ -1053,6 +1053,7 @@ static int __init xenloop_init(void)
 
 	if((rc = write_xenstore(1))) {
 		EPRINTK("Failed to write to xenstore, permissions error?\n");
+		net_exit();
 		clean_table(&mac_domid_map);
 		goto out;
 	}
