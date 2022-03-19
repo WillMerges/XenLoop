@@ -147,13 +147,11 @@ int xf_destroy(xf_handle_t *xfl)
 		goto err;
 	}
 
-	/*
 	for(i=0; i < xfl->descriptor->num_pages; i++)
 		gnttab_end_foreign_access_ref(xfl->descriptor->grefs[i], 0);
 	gnttab_end_foreign_access_ref(xfl->descriptor->dgref, 0);
 
 	DPRINTK("free_pages / kfree in xf_destroy\n");
-	*/
 
 	free_pages((unsigned long)xfl->fifo, get_order(xfl->descriptor->num_pages*PAGE_SIZE));
 	free_page((unsigned long)xfl->descriptor);
@@ -284,7 +282,6 @@ int xf_disconnect(xf_handle_t *xfc)
 		goto err;
 	}
 
-	/*
 	num_pages = xfc->descriptor->num_pages;
 	for(i=0; i < num_pages; i++) {
 		gnttab_set_unmap_op(&unmap_op, (unsigned long)(xfc->fifo + i*PAGE_SIZE),
@@ -299,7 +296,6 @@ int xf_disconnect(xf_handle_t *xfc)
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
 	if( ret )
 		EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
-	*/
 
 	// free_pages((unsigned long)xfc->fifo, num_pages);
 	// free_page((unsigned long)xfc->descriptor);
