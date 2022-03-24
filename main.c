@@ -672,7 +672,7 @@ inline int xmit_packets(struct sk_buff *skb)
 
 		rc = xmit_large_pkt(skb, e->bfh->out);
 
-		DPRINTK("rc: %d\n", rc);
+		// DPRINTK("rc: %d\n", rc);
 
 		if (rc < 0) {
 			// EPRINTK("xmit_large_pkt failed: %d\n", rc);
