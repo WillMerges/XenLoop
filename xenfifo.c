@@ -86,6 +86,8 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 	if(!xfl->fifo) {
 		EPRINTK("Cannot allocate buffer memory pages for FIFO\n");
 		goto err;
+	} else {
+		EPRINTK("Allocated %u memory pages for FIFO\n", xfc->descriptor->num_pages);
 	}
 
 
@@ -234,6 +236,8 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 	if(!xfc->fifo) {
 		EPRINTK("Cannot allocate %u memory pages for FIFO\n", xfc->descriptor->num_pages);
 		goto err;
+	} else {
+		EPRINTK("Allocated %u memory pages for FIFO\n", xfc->descriptor->num_pages);
 	}
 
 	// map the guest VMs FIFO pages to our own pages

@@ -55,6 +55,14 @@ int  equal(void *pmac1, void *pmac2)
 };
 
 
+ulong hash_ip(u32 ip) {
+	return ip % XENLOOP_HASH_SIZE;
+}
+
+int equal_ip(u32 ip1, u32 ip2) {
+	return ip1 == ip2;
+}
+
 inline void insert_table(HashTable * ht, void * key, u8 domid)
 {
 	Bucket * b = &ht->table[hash(key)];
@@ -72,6 +80,23 @@ inline void insert_table(HashTable * ht, void * key, u8 domid)
 	e->listen_flag = 0xff;
 	e->bfh = NULL;
 	e->retry_count = 0;
+
+	spin_lock_irqsave(&glock, flags);
+	list_add(&e->mapping, &(b->bucket));
+	ht->count++;
+	spin_unlock_irqrestore(&glock, flags);
+}
+
+inline void insert_table_ip(HashTable* ht, u32 ip, Entry* old_entry) {
+	Bucket * b = &ht->table[hash_ip(ip)];
+	Entry * e;
+	ulong flags;
+
+	e = kmem_cache_alloc(ht->entries, GFP_ATOMIC);
+	BUG_ON(!e);
+
+	memcpy((void*)e, (void*)old_entry, sizeof(Entry));
+	e->ip = ip;
 
 	spin_lock_irqsave(&glock, flags);
 	list_add(&e->mapping, &(b->bucket));
@@ -130,7 +155,6 @@ inline Entry* lookup_bfh(HashTable * ht, void * key)
 }
 
 
-
 inline void * lookup_table(HashTable * ht, void * key)
 {
 	Entry * d = NULL;
@@ -150,6 +174,23 @@ inline void * lookup_table(HashTable * ht, void * key)
 	return d;
 }
 
+inline void * lookup_table_ip(HashTable * ht, u32 ip) {
+	Entry * d = NULL;
+	Bucket * b = &ht->table[hash_ip(ip)];
+
+	if(!list_empty(&b->bucket)) {
+		struct list_head * x;
+		Entry * e;
+		list_for_each(x, &(b->bucket)) {
+			e = list_entry(x, Entry, mapping);
+			if(e->ip == ip) {
+				d = e;
+				break;
+			}
+		}
+	}
+	return d;
+}
 
 inline int has_suspend_entry(HashTable * ht)
 {
