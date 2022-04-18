@@ -87,7 +87,7 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 		EPRINTK("Cannot allocate buffer memory pages for FIFO\n");
 		goto err;
 	} else {
-		EPRINTK("Allocated %u memory pages for FIFO\n", xfc->descriptor->num_pages);
+		EPRINTK("Allocated %u memory pages for FIFO\n", xfl->descriptor->num_pages);
 	}
 
 
