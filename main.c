@@ -826,10 +826,10 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 	}
 
 	DPRINTK("ARP header in\n");
-	u8* mac = (u8*)(&(hdr->ar_op)) + ETH_ALEN + 4;
+	u8* mac = (u8*)(&(hdr->ar_op)) + ETH_ALEN + 4 + 2;
 	DPRINTK("Target MAC: " MAC_FMT "\n", MAC_NTOA(mac));
 
-	if(!(e = lookup_table(&mac_domid_map, (void*)(&(hdr->ar_op)) + ETH_ALEN + 4))) {
+	if(!(e = lookup_table(&mac_domid_map, (void*)(&(hdr->ar_op)) + ETH_ALEN + 6))) {
 		DPRINTK("Not in table\n");
 		return ret;
 	}
@@ -841,7 +841,7 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 	// 	return ret;
 	// }
 
-	memcpy((void*)&ip, (void*)(&(hdr->ar_op)) + 4 + (2 * ETH_ALEN), 4);
+	memcpy((void*)&ip, (void*)(&(hdr->ar_op)) + 6 + (2 * ETH_ALEN), 4);
 
 	DPRINTK("Added IP: %u to table\n", ip);
 
