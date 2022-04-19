@@ -836,9 +836,9 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 
 	memcpy((void*)&ip, (void*)hdr + 4 + (2 * ETH_ALEN), ETH_ALEN);
 
-	DPRINTK("Added IP: %pi4 to table\n", ip);
+	DPRINTK("Added IP: %u to table\n", ip);
 
-	insert_table_ip(ip_domid_map, ip, e);
+	insert_table_ip(&ip_domid_map, ip, e);
 	remove_entry_mac(&mac_domid_map, e);
 
 	return ret;
@@ -866,7 +866,7 @@ struct nf_hook_ops iphook_out_ops = {
 // .pf = NF_ARP
 // .hooknum = NF_ARP_IN
 // use "arp_hdr" function to check for MACs we know about
-struct nf_hook_ops hook_arp_ops {
+struct nf_hook_ops hook_arp_ops = {
 	.hook = arphook_in,
 	.pf = NFPROTO_ARP,
 	.hooknum = NF_ARP_IN,
