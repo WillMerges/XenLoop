@@ -866,7 +866,7 @@ struct nf_hook_ops iphook_out_ops = {
 // use "arp_hdr" function to check for MACs we know about
 struct nf_hook_ops hook_arp_ops {
 	.hook = arphook_in,
-	.pf = NF_ARP,
+	.pf = NFPROTO_ARP,
 	.hooknum = NF_ARP_IN,
 	.priority = 10,
 };
