@@ -104,8 +104,6 @@ inline void insert_table_ip(HashTable* ht, u32 ip, Entry* old_entry) {
 	spin_unlock_irqrestore(&glock, flags);
 }
 
-
-
 inline void remove_entry(HashTable *ht, Entry *e, struct list_head *x) {
 	ulong flags;
 
@@ -135,6 +133,22 @@ inline void remove_entry(HashTable *ht, Entry *e, struct list_head *x) {
 	DPRINTK("Delete Guest: deleted one guest mac =" MAC_FMT " Domid = %d.\n", \
 		 MAC_NTOA(e->mac), e->domid);
 	TRACE_EXIT;
+}
+
+inline void remove_entry_mac(HashTable* ht, void* mac) {
+	Bucket * b = &ht->table[hash(key)];
+
+	if(!list_empty(&b->bucket)) {
+		struct list_head * x;
+		Entry * e;
+		list_for_each(x, &(b->bucket)) {
+			e = list_entry(x, Entry, mapping);
+			if(equal(key, (u8 *) e->mac)) {
+				remove_entry(ht, e, x)
+				break;
+			}
+		}
+	}
 }
 
 inline Entry* lookup_bfh(HashTable * ht, void * key)

@@ -84,7 +84,6 @@ extern void migrate_send(void);
 #define XENLOOP_STATUS_LISTEN 	2
 #define XENLOOP_STATUS_CONNECTED 4
 #define XENLOOP_STATUS_SUSPEND   8
-#define XENLOOP_STATUS_NMAPPED   16
 
 typedef struct Entry {
 	struct list_head mapping;

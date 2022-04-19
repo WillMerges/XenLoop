@@ -99,7 +99,12 @@ DECLARE_WAIT_QUEUE_HEAD(swq);
 static struct task_struct *pending_thread = NULL;
 DECLARE_WAIT_QUEUE_HEAD(pending_wq);
 
+extern void insert_table_ip(HashTable* ht, u32 ip, Entry* old_entry);
+extern void * lookup_table_ip(HashTable * ht, u32 ip);
+extern void remove_entry_mac(HashTable* ht, void* mac)
+
 HashTable mac_domid_map;
+HashTable ip_domid_map;
 
 static char* nic = NULL;
 module_param(nic,charp,0660);
@@ -802,6 +807,38 @@ static unsigned int iphook_in(
         return NF_ACCEPT;
 }
 
+// catch incoming ARP packets
+// if it's resolving a MAC address the dom0 has told us about, add it's IP to the table we check
+static unsigned int arphook_in(void* priv, struct sk_buff* skb,
+	 						   const struct nf_hook_state* state) {
+	int ret = NF_ACCEPT;
+	struct arphdr* hdr;
+	Entry* e;
+	u32 ip;
+
+	hdr = arp_hdr(skb);
+
+	if(hdr->ar_pro != htons(ETH_P_IP)) {
+		return ret;
+	}
+
+	if(!(e = lookup_table(&mac_domid_map, hdr->ar_tha))) {
+		return ret;
+	}
+
+	// TODO this should always be true
+	// everything in mac_domid_map should be in INIT
+	if(e->status == XENLOOP_STATUS_INIT) {
+		return ret;
+	}
+
+	memcpy((void*)&ip, hdr->ar_tip, ETH_ALEN);
+	insert_table_ip(ip_domid_map, ip, e);
+	remove_entry_mac(&mac_domid_map, e);
+
+	return ret;
+}
+
 
 
 struct nf_hook_ops iphook_in_ops = {
@@ -811,14 +848,25 @@ struct nf_hook_ops iphook_in_ops = {
 	.hooknum = NF_INET_PRE_ROUTING,
 	.priority = 10,
 };
+
 struct nf_hook_ops iphook_out_ops = {
 	.hook = iphook_out,
 	// .owner = THIS_MODULE,
 	.pf = PF_INET,
-	.hooknum = NF_INET_POST_ROUTING,
+	.hooknum = NF_INET_POST_ROUTING, // TODO use NF_IP_LOCAL_OUT instead
 	.priority = 10,
 };
 
+// TODO hook ARP input packets
+// .pf = NF_ARP
+// .hooknum = NF_ARP_IN
+// use "arp_hdr" function to check for MACs we know about
+struct nf_hook_ops iphook_arp_ops {
+	.hook = arphook_in,
+	.pf = NF_ARP,
+	.hooknum = NF_ARP_IN,
+	.priority = 10,
+};
 
 int net_init(void)
 {
@@ -917,6 +965,21 @@ static int check_suspend(void *useless)
 	TRACE_ENTRY;
 
 	while(!kthread_should_stop()) {
+		schedule_timeout(SUSPEND_TIMEOUT * HZ); // takes jiffies
+
+		// check everything in mac_domid_map to see if we should add it to the ip map
+
+	}
+	TRACE_EXIT;
+	return 0;
+}
+
+#define IP_CHECK_PERIOD 5
+static int ip_check_map(void *useless) {
+	int ret;
+	TRACE_ENTRY;
+
+	while(!kthread_should_stop()) {
 		ret = wait_event_interruptible_timeout(swq, has_suspend_entry(&mac_domid_map), SUSPEND_TIMEOUT*HZ);
 		if (ret > 0) {
 			clean_suspended_entries(&mac_domid_map);
@@ -1010,6 +1073,7 @@ static void xenloop_exit(void)
 	net_exit();
 
 	clean_table(&mac_domid_map);
+	clean_table(&ip_domid_map);
 
 	DPRINTK("Exiting xenloop module.\n");
 	TRACE_EXIT;
@@ -1042,12 +1106,18 @@ static int __init xenloop_init(void)
 		goto out;
 	}
 
+	if(init_hash_table(&ip_domid_map, "IP_DOMID_MAP_Table") != 0) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
 	my_domid = get_my_domid();
 	probe_vifs();
 
 	if ((rc = net_init()) < 0) {
 		EPRINTK("session_init(): net_init failed\n");
 		clean_table(&mac_domid_map);
+		clean_table(&ip_domid_map);
 		goto out;
 	}
 
@@ -1055,6 +1125,7 @@ static int __init xenloop_init(void)
 		EPRINTK("Failed to write to xenstore, permissions error?\n");
 		net_exit();
 		clean_table(&mac_domid_map);
+		clean_table(&ip_domid_map);
 		goto out;
 	}
 
@@ -1072,6 +1143,13 @@ static int __init xenloop_init(void)
 
 	suspend_thread = kthread_run(check_suspend, NULL, "suspend");
 	if(!suspend_thread) {
+		xenloop_exit();
+		rc = -1;
+		goto out;
+	}
+
+	ip_map_thread = kthread_run(ip_check_map, NULL, "IP map");
+	if(!ip_map_thread) {
 		xenloop_exit();
 		rc = -1;
 		goto out;
