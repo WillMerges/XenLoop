@@ -826,6 +826,7 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 	}
 
 	DPRINTK("ARP header in\n");
+	DPRINTK("Target MAC: " MAC_FMT "\n", (void*)(&(hdr->ar_op)) + ETH_ALEN + 4);
 
 	if(!(e = lookup_table(&mac_domid_map, (void*)(&(hdr->ar_op)) + ETH_ALEN + 4))) {
 		DPRINTK("Not in table\n");
@@ -1072,8 +1073,8 @@ static void xenloop_exit(void)
 
 	net_exit();
 
-	// clean_table(&mac_domid_map);
-	// clean_table(&ip_domid_map);
+	clean_table(&mac_domid_map);
+	clean_table(&ip_domid_map);
 
 	DPRINTK("Exiting xenloop module.\n");
 	TRACE_EXIT;
