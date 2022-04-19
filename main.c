@@ -69,6 +69,7 @@
 #include "maptable.h"
 
 #include <linux/if_arp.h>
+#include <uapi/linux/netfilter_arp.h>
 
 
 extern int 	init_hash_table(HashTable *, char *);
@@ -969,7 +970,7 @@ static int xmit_pending(void *useless)
 	return 0;
 }
 
-#define IP_SUSPEND_TIMEOUT 5
+#define SUSPEND_TIMEOUT 5
 static int check_suspend(void *useless) {
 	int ret;
 	TRACE_ENTRY;
