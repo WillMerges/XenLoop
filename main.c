@@ -824,7 +824,7 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 		return ret;
 	}
 
-	if(!(e = lookup_table(&mac_domid_map, hdr->ar_tha))) {
+	if(!(e = lookup_table(&mac_domid_map, (void*)hdr + 4 + ETH_ALEN))) {
 		return ret;
 	}
 
@@ -834,7 +834,7 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 		return ret;
 	}
 
-	memcpy((void*)&ip, hdr->ar_tip, ETH_ALEN);
+	memcpy((void*)&ip, (void*)hdr + 4 + (2 * ETH_ALEN), ETH_ALEN);
 
 	DPRINTK("Added IP: %pi4 to table\n", ip);
 
