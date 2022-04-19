@@ -136,15 +136,15 @@ inline void remove_entry(HashTable *ht, Entry *e, struct list_head *x) {
 }
 
 inline void remove_entry_mac(HashTable* ht, void* mac) {
-	Bucket * b = &ht->table[hash(key)];
+	Bucket * b = &ht->table[hash(mac)];
 
 	if(!list_empty(&b->bucket)) {
 		struct list_head * x;
 		Entry * e;
 		list_for_each(x, &(b->bucket)) {
 			e = list_entry(x, Entry, mapping);
-			if(equal(key, (u8 *) e->mac)) {
-				remove_entry(ht, e, x)
+			if(equal(mac, (u8 *) e->mac)) {
+				remove_entry(ht, e, x);
 				break;
 			}
 		}

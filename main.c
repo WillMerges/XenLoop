@@ -833,6 +833,9 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 	}
 
 	memcpy((void*)&ip, hdr->ar_tip, ETH_ALEN);
+
+	DPRINTK("Added IP: %pi4 to table\n", ip);
+
 	insert_table_ip(ip_domid_map, ip, e);
 	remove_entry_mac(&mac_domid_map, e);
 
@@ -964,38 +967,22 @@ static int xmit_pending(void *useless)
 	return 0;
 }
 
-#define SUSPEND_TIMEOUT 5
-static int check_suspend(void *useless)
-{
+#define IP_SUSPEND_TIMEOUT 5
+static int check_suspend(void *useless) {
 	int ret;
 	TRACE_ENTRY;
 
 	while(!kthread_should_stop()) {
-		schedule_timeout(SUSPEND_TIMEOUT * HZ); // takes jiffies
-
-		// check everything in mac_domid_map to see if we should add it to the ip map
-
+		ret = wait_event_interruptible_timeout(swq, has_suspend_entry(&mac_domid_map), SUSPEND_TIMEOUT*HZ);
+		if (ret > 0) {
+			clean_suspended_entries(&mac_domid_map);
+		} else if (ret == 0) {
+			check_timeout(&mac_domid_map);
+		}
 	}
 	TRACE_EXIT;
 	return 0;
 }
-
-// #define IP_CHECK_PERIOD 5
-// static int ip_check_map(void *useless) {
-// 	int ret;
-// 	TRACE_ENTRY;
-//
-// 	while(!kthread_should_stop()) {
-// 		ret = wait_event_interruptible_timeout(swq, has_suspend_entry(&mac_domid_map), SUSPEND_TIMEOUT*HZ);
-// 		if (ret > 0) {
-// 			clean_suspended_entries(&mac_domid_map);
-// 		} else if (ret == 0) {
-// 			check_timeout(&mac_domid_map);
-// 		}
-// 	}
-// 	TRACE_EXIT;
-// 	return 0;
-// }
 
 
 static void suspend_resume_handler(struct xenbus_watch *watch,
