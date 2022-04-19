@@ -828,14 +828,16 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 	DPRINTK("ARP header in\n");
 
 	if(!(e = lookup_table(&mac_domid_map, (void*)(&(hdr->ar_op)) + ETH_ALEN + 4))) {
+		DPRINTK("Not in table\n");
 		return ret;
 	}
 
 	// TODO this should always be true
 	// everything in mac_domid_map should be in INIT
-	if(e->status == XENLOOP_STATUS_INIT) {
-		return ret;
-	}
+	// if(e->status != XENLOOP_STATUS_INIT) {
+	// 	DPRINTK("In init phase\n");
+	// 	return ret;
+	// }
 
 	memcpy((void*)&ip, (void*)(&(hdr->ar_op)) + 4 + (2 * ETH_ALEN), 4);
 
