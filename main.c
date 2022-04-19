@@ -861,7 +861,7 @@ struct nf_hook_ops iphook_out_ops = {
 // .pf = NF_ARP
 // .hooknum = NF_ARP_IN
 // use "arp_hdr" function to check for MACs we know about
-struct nf_hook_ops iphook_arp_ops {
+struct nf_hook_ops hook_arp_ops {
 	.hook = arphook_in,
 	.pf = NF_ARP,
 	.hooknum = NF_ARP_IN,
@@ -894,6 +894,11 @@ int net_init(void)
 		EPRINTK("can't register OUT hook.\n");
 		goto out;
 	}
+	ret = nf_register_net_hook(&init_net, &hook_arp_ops);
+	if (ret < 0) {
+		EPRINTK("can't register ARP hook.\n");
+		goto out;
+	}
 
 	dev_add_pack(&xenloop_ptype);
 
@@ -910,6 +915,7 @@ void net_exit(void)
 
 	nf_unregister_net_hook(&init_net, &iphook_in_ops);
 	nf_unregister_net_hook(&init_net, &iphook_out_ops);
+	nf_unregister_net_hook(&init_net, &hook_arp_ops);
 
 	if(NIC) dev_put(NIC);
 
@@ -974,22 +980,22 @@ static int check_suspend(void *useless)
 	return 0;
 }
 
-#define IP_CHECK_PERIOD 5
-static int ip_check_map(void *useless) {
-	int ret;
-	TRACE_ENTRY;
-
-	while(!kthread_should_stop()) {
-		ret = wait_event_interruptible_timeout(swq, has_suspend_entry(&mac_domid_map), SUSPEND_TIMEOUT*HZ);
-		if (ret > 0) {
-			clean_suspended_entries(&mac_domid_map);
-		} else if (ret == 0) {
-			check_timeout(&mac_domid_map);
-		}
-	}
-	TRACE_EXIT;
-	return 0;
-}
+// #define IP_CHECK_PERIOD 5
+// static int ip_check_map(void *useless) {
+// 	int ret;
+// 	TRACE_ENTRY;
+//
+// 	while(!kthread_should_stop()) {
+// 		ret = wait_event_interruptible_timeout(swq, has_suspend_entry(&mac_domid_map), SUSPEND_TIMEOUT*HZ);
+// 		if (ret > 0) {
+// 			clean_suspended_entries(&mac_domid_map);
+// 		} else if (ret == 0) {
+// 			check_timeout(&mac_domid_map);
+// 		}
+// 	}
+// 	TRACE_EXIT;
+// 	return 0;
+// }
 
 
 static void suspend_resume_handler(struct xenbus_watch *watch,
@@ -1148,12 +1154,12 @@ static int __init xenloop_init(void)
 		goto out;
 	}
 
-	ip_map_thread = kthread_run(ip_check_map, NULL, "IP map");
-	if(!ip_map_thread) {
-		xenloop_exit();
-		rc = -1;
-		goto out;
-	}
+	// ip_map_thread = kthread_run(ip_check_map, NULL, "IP map");
+	// if(!ip_map_thread) {
+	// 	xenloop_exit();
+	// 	rc = -1;
+	// 	goto out;
+	// }
 
 	DPRINTK("XENLOOP successfully initialized!\n");
 
