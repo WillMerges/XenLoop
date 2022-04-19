@@ -826,7 +826,7 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 	}
 
 	DPRINTK("ARP header in\n");
-	DPRINTK("Target MAC: " MAC_FMT "\n", MAC_NTOA((void*)(&(hdr->ar_op)) + ETH_ALEN + 4));
+	DPRINTK("Target MAC: " MAC_FMT "\n", MAC_NTOA((u8*)(&(hdr->ar_op)) + ETH_ALEN + 4));
 
 	if(!(e = lookup_table(&mac_domid_map, (void*)(&(hdr->ar_op)) + ETH_ALEN + 4))) {
 		DPRINTK("Not in table\n");
