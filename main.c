@@ -825,6 +825,8 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 		return ret;
 	}
 
+	DPRINTK("ARP header in\n");
+
 	if(!(e = lookup_table(&mac_domid_map, (void*)hdr + 4 + ETH_ALEN))) {
 		return ret;
 	}
