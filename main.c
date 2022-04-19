@@ -1070,8 +1070,8 @@ static void xenloop_exit(void)
 
 	net_exit();
 
-	clean_table(&mac_domid_map);
-	clean_table(&ip_domid_map);
+	// clean_table(&mac_domid_map);
+	// clean_table(&ip_domid_map);
 
 	DPRINTK("Exiting xenloop module.\n");
 	TRACE_EXIT;
