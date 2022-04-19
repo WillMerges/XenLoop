@@ -835,7 +835,7 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 		return ret;
 	}
 
-	memcpy((void*)&ip, (void*)hdr + 4 + (2 * ETH_ALEN), ETH_ALEN);
+	memcpy((void*)&ip, (void*)hdr + 4 + (2 * ETH_ALEN), 4);
 
 	DPRINTK("Added IP: %u to table\n", ip);
 
