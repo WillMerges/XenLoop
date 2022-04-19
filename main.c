@@ -68,6 +68,8 @@
 #include "bififo.h"
 #include "maptable.h"
 
+#include <linux/if_arp.h>
+
 
 extern int 	init_hash_table(HashTable *, char *);
 extern void 	clean_table(HashTable *);
