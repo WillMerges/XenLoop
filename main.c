@@ -675,7 +675,8 @@ inline int xmit_packets(struct sk_buff *skb)
 		BUG_ON(!skb);
 
 		// TODO store skb and entry together? so we don't have to do this lookup
-		e = lookup_table(&mac_domid_map, dst_neigh_lookup_skb(skb_dst(skb), skb)->ha);
+		// e = lookup_table(&mac_domid_map, dst_neigh_lookup_skb(skb_dst(skb), skb)->ha);
+		e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr);
 		BUG_ON(!e);
 
 		rc = xmit_large_pkt(skb, e->bfh->out);
@@ -703,7 +704,8 @@ inline int xmit_packets(struct sk_buff *skb)
 	// TODO why is this here? did we not already call bf_notify after copying the skb in?
 	// let's comment it out and see if it does anything - NOTE: it broke :( see above
 	// I'm assuming we have to wait to send the notify?
-	notify_all_bfs(&mac_domid_map);
+	// notify_all_bfs(&mac_domid_map);
+	notify_all_bfs(%ip_domid_map);
 
 	TRACE_EXIT;
 	return ret;
@@ -722,7 +724,7 @@ static unsigned int iphook_out(
         // struct neighbour *neigh = dst->neighbour;
 	// TODO do we need to do this?
 	// can't we just look at eth_hdr of the skb
-	struct neighbour *neigh = dst_neigh_lookup_skb(skb_dst(skb), skb);
+	// struct neighbour *neigh = dst_neigh_lookup_skb(skb_dst(skb), skb);
 
 	// TODO just tried this, it didn't work
 	// LOL
@@ -730,21 +732,25 @@ static unsigned int iphook_out(
 	// u8* dst_mac = eth_hdr(skb)->h_dest;
 
 	// TODO this seems to be just debugging info, remove
-	if_total++;
-	if (skb->len > 32768*8)  if_over++;
+	// if_total++;
+	// if (skb->len > 32768*8)  if_over++;
 
 
-    if (!neigh) {
-		return NF_ACCEPT;
-	}
+    // if (!neigh) {
+	// 	return NF_ACCEPT;
+	// }
 
 
-	if (!(neigh->nud_state & (NUD_CONNECTED|NUD_DELAY|NUD_PROBE) )) {
-		return NF_ACCEPT;
-	}
+	// if (!(neigh->nud_state & (NUD_CONNECTED|NUD_DELAY|NUD_PROBE) )) {
+	// 	return NF_ACCEPT;
+	// }
 
-	if (!(e = lookup_table(&mac_domid_map, neigh->ha))) {
+	// if (!(e = lookup_table(&mac_domid_map, neigh->ha))) {
 	// if(!(e = lookup_table(&mac_domid_map, dst_mac))) {
+	// 	return NF_ACCEPT;
+	// }
+
+	if(!(e = lookup_table(&ip_domid_map, ip_hdr(skb)->daddr)) {
 		return NF_ACCEPT;
 	}
 
@@ -796,9 +802,12 @@ static unsigned int iphook_in(
 
 	Entry * e;
 	int ret = NF_ACCEPT;
-	u8 *src_mac = eth_hdr(skb)->h_source;
+	// u8 *src_mac = eth_hdr(skb)->h_source;
 
-	if (!(e = lookup_table(&mac_domid_map, src_mac))) {
+	// if (!(e = lookup_table(&mac_domid_map, src_mac))) {
+	// 	return ret;
+	// }
+	if(!(e = lookup_table(&ip_domid_map, ip_hdr(skb)->daddr))) {
 		return ret;
 	}
 
@@ -830,7 +839,7 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 	DPRINTK("Target MAC: " MAC_FMT "\n", MAC_NTOA(mac));
 
 	if(!(e = lookup_table(&mac_domid_map, (void*)(&(hdr->ar_op)) + 2))) {
-		DPRINTK("Not in table\n");
+		DPRINTK("ARP source Not in MAC table\n");
 		return ret;
 	}
 
@@ -937,6 +946,7 @@ void pre_migration(void)
 	write_xenstore(0);
 	freezed = 1;
 	mark_suspend(&mac_domid_map);
+	mark_suspend(&ip_domid_map);
 
 	wake_up_interruptible(&swq);
 	TRACE_EXIT;
@@ -978,10 +988,12 @@ static int check_suspend(void *useless) {
 	TRACE_ENTRY;
 
 	while(!kthread_should_stop()) {
-		ret = wait_event_interruptible_timeout(swq, has_suspend_entry(&mac_domid_map), SUSPEND_TIMEOUT*HZ);
+		ret = wait_event_interruptible_timeout(swq, has_suspend_entry(&ip_domid_map), SUSPEND_TIMEOUT*HZ);
 		if (ret > 0) {
+			clean_suspended_entries(&ip_domid_map);
 			clean_suspended_entries(&mac_domid_map);
 		} else if (ret == 0) {
+			check_timeout(&ip_domid_map);
 			check_timeout(&mac_domid_map);
 		}
 	}
@@ -1061,7 +1073,7 @@ static void xenloop_exit(void)
 	if(pending_thread)
 		kthread_stop(pending_thread);
 
-	mark_suspend(&mac_domid_map);
+	mark_suspend(&ip_domid_map);
 
 	if(suspend_thread)
 		kthread_stop(suspend_thread);
