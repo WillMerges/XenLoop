@@ -76,13 +76,16 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 	memset(xfl, 0, sizeof(xf_handle_t));
 
 
-	xfl->descriptor = (xf_descriptor_t *) __get_free_page(GFP_ATOMIC);
+	// xfl->descriptor = (xf_descriptor_t *) __get_free_page(GFP_ATOMIC);
+	xfl->descriptor = (xf_descriptor_t*) kmalloc(PAGE_SIZE);
 	if(!xfl->descriptor) {
 		EPRINTK("Cannot allocate descriptor memory page for FIFO\n");
 		goto err;
 	}
+	xfl->descriptor->num_pages = (1<<page_order);
 
-	xfl->fifo = (void *) __get_free_pages(GFP_ATOMIC, page_order);
+	// xfl->fifo = (void *) __get_free_pages(GFP_ATOMIC, page_order);
+	xfl->fifo = (void*) kmalloc(xfl->descriptor->num_pages * PAGE_SIZE);
 	if(!xfl->fifo) {
 		EPRINTK("Cannot allocate buffer memory pages for FIFO\n");
 		goto err;
@@ -94,7 +97,6 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 	xfl->listen_flag = 1;
 	xfl->remote_id = remote_domid;
 	xfl->descriptor->suspended_flag = 0;
-	xfl->descriptor->num_pages = (1<<page_order);
 	xfl->descriptor->max_data_entries = (1<<entry_order);
 	xfl->descriptor->index_mask = ~(0xffffffff<<entry_order);
 	xfl->descriptor->front = xfl->descriptor->back = 0;
@@ -124,8 +126,17 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 
 err:
 	if( xfl) {
-		if( xfl->descriptor) free_page((unsigned long)xfl->descriptor);
-		if( xfl->fifo ) free_pages((unsigned long)xfl->fifo, page_order);
+		// if( xfl->descriptor) free_page((unsigned long)xfl->descriptor);
+		// if( xfl->fifo ) free_pages((unsigned long)xfl->fifo, page_order);
+
+		if(xfl->fifo) {
+			kfree(xfl->fifo);
+		}
+
+		if(xfl->descriptor) {
+			kfree(xfl->descriptor);
+		}
+
 		kfree(xfl);
 	}
 
@@ -155,15 +166,15 @@ int xf_destroy(xf_handle_t *xfl)
 	}
 
 	num_pages = xfl->descriptor->num_pages;
-	page_order = 0;
-	while(1) {
-		num_pages = num_pages >> 1;
-		page_order++;
-
-		if(num_pages == 1) {
-			break;
-		}
-	}
+	// page_order = 0;
+	// while(1) {
+	// 	num_pages = num_pages >> 1;
+	// 	page_order++;
+	//
+	// 	if(num_pages == 1) {
+	// 		break;
+	// 	}
+	// }
 
 	// copy grefs so we can free the descriptor but still have the grefs
 	for(i=0; i < num_pages; i++) {
@@ -171,8 +182,10 @@ int xf_destroy(xf_handle_t *xfl)
 	}
 	dgref = xfl->descriptor->dgref;
 
-	free_pages((unsigned long)xfl->fifo, page_order);
-	free_page((unsigned long)xfl->descriptor);
+	// free_pages((unsigned long)xfl->fifo, page_order);
+	// free_page((unsigned long)xfl->descriptor);
+	kfree(xfl->fifo);
+	kfree(xfl->descriptor);
 	kfree(xfl);
 
 	// for(i=0; i < xfl->descriptor->num_pages; i++)
