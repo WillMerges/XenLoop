@@ -854,10 +854,12 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 
 	memcpy((void*)&ip, (void*)(&(hdr->ar_op)) + 2 + ETH_ALEN, 4);
 
-	DPRINTK("Added IP: %u to table\n", ip);
-
-	insert_table_ip(&ip_domid_map, ip, e);
-	remove_entry_mac(&mac_domid_map, mac);
+	if(NULL == lookup_table_ip(&ip_domid_map, ip)) {
+		insert_table_ip(&ip_domid_map, ip, e);
+		DPRINTK("Added IP: %u to table\n", ip);
+	}
+	// leave MAC entry in
+	// remove_entry_mac(&mac_domid_map, mac);
 
 	return ret;
 }
