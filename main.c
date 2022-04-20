@@ -751,6 +751,7 @@ static unsigned int iphook_out(
 	// }
 
 	if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
+		DPRINTK("Not in table, using normal routing\n");
 		return NF_ACCEPT;
 	}
 
@@ -827,6 +828,7 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 	struct arphdr* hdr;
 	Entry* e;
 	u32 ip;
+	u8* mac;
 
 	hdr = arp_hdr(skb);
 
@@ -835,7 +837,7 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 	}
 
 	DPRINTK("ARP header in\n");
-	u8* mac = (u8*)(&(hdr->ar_op)) + 2;
+	mac = (u8*)(&(hdr->ar_op)) + 2;
 	DPRINTK("Target MAC: " MAC_FMT "\n", MAC_NTOA(mac));
 
 	if(!(e = lookup_table(&mac_domid_map, (void*)(&(hdr->ar_op)) + 2))) {
@@ -855,7 +857,7 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 	DPRINTK("Added IP: %u to table\n", ip);
 
 	insert_table_ip(&ip_domid_map, ip, e);
-	remove_entry_mac(&mac_domid_map, e);
+	remove_entry_mac(&mac_domid_map, mac);
 
 	return ret;
 }
