@@ -874,7 +874,8 @@ struct nf_hook_ops iphook_out_ops = {
 	.hook = iphook_out,
 	// .owner = THIS_MODULE,
 	.pf = PF_INET,
-	.hooknum = NF_INET_POST_ROUTING, // TODO use NF_IP_LOCAL_OUT instead
+	// .hooknum = NF_INET_POST_ROUTING, // TODO use NF_IP_LOCAL_OUT instead
+	.hooknum = NF_IP_LOCAL_OUT,
 	.priority = 10,
 };
 
@@ -988,12 +989,14 @@ static int check_suspend(void *useless) {
 	TRACE_ENTRY;
 
 	while(!kthread_should_stop()) {
-		ret = wait_event_interruptible_timeout(swq, has_suspend_entry(&ip_domid_map), SUSPEND_TIMEOUT*HZ);
+		ret = wait_event_interruptible_timeout(swq, has_suspend_entry(&ip_domid_map) || has_suspend_entry(&mac_domid_map), SUSPEND_TIMEOUT*HZ);
 		if (ret > 0) {
+			// we have something suspended that we need to cleanup
 			clean_suspended_entries(&ip_domid_map);
 			clean_suspended_entries(&mac_domid_map);
 		} else if (ret == 0) {
-			check_timeout(&ip_domid_map);
+			// NOTE: we never update the IP table timestamps, so don't suspend them
+			// check_timeout(&ip_domid_map);
 			check_timeout(&mac_domid_map);
 		}
 	}
@@ -1073,6 +1076,7 @@ static void xenloop_exit(void)
 	if(pending_thread)
 		kthread_stop(pending_thread);
 
+	// only need to mark suspend on IP map, things in MAC map can't be connected
 	mark_suspend(&ip_domid_map);
 
 	if(suspend_thread)
