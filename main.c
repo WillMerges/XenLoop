@@ -89,9 +89,9 @@ static u8 num_of_macs = 0;
 static u8 freezed = 0;
 struct net_device *NIC = NULL;
 static int if_drops = 0;
-static int if_over = 0;
-static int if_fifo = 0;
-static int if_total = 0;
+// static int if_over = 0;
+// static int if_fifo = 0;
+// static int if_total = 0;
 static skb_queue_t out_queue;
 static skb_queue_t pending_free;
 
@@ -750,7 +750,7 @@ static unsigned int iphook_out(
 	// 	return NF_ACCEPT;
 	// }
 
-	if(!(e = lookup_table(&ip_domid_map, ip_hdr(skb)->daddr))) {
+	if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
 		return NF_ACCEPT;
 	}
 
@@ -778,7 +778,7 @@ static unsigned int iphook_out(
 				ret = NF_ACCEPT;
 				goto out;
 			}
-			if_fifo++;
+			// if_fifo++;
 			ret = NF_STOLEN;
 			break;
 
@@ -807,7 +807,7 @@ static unsigned int iphook_in(
 	// if (!(e = lookup_table(&mac_domid_map, src_mac))) {
 	// 	return ret;
 	// }
-	if(!(e = lookup_table(&ip_domid_map, ip_hdr(skb)->daddr))) {
+	if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
 		return ret;
 	}
 
