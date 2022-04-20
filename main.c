@@ -869,10 +869,6 @@ struct nf_hook_ops iphook_out_ops = {
 	.priority = 10,
 };
 
-// TODO hook ARP input packets
-// .pf = NF_ARP
-// .hooknum = NF_ARP_IN
-// use "arp_hdr" function to check for MACs we know about
 struct nf_hook_ops hook_arp_ops = {
 	.hook = arphook_in,
 	.pf = NFPROTO_ARP,
