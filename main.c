@@ -705,7 +705,7 @@ inline int xmit_packets(struct sk_buff *skb)
 	// let's comment it out and see if it does anything - NOTE: it broke :( see above
 	// I'm assuming we have to wait to send the notify?
 	// notify_all_bfs(&mac_domid_map);
-	notify_all_bfs(%ip_domid_map);
+	notify_all_bfs(&ip_domid_map);
 
 	TRACE_EXIT;
 	return ret;
@@ -750,7 +750,7 @@ static unsigned int iphook_out(
 	// 	return NF_ACCEPT;
 	// }
 
-	if(!(e = lookup_table(&ip_domid_map, ip_hdr(skb)->daddr)) {
+	if(!(e = lookup_table(&ip_domid_map, ip_hdr(skb)->daddr))) {
 		return NF_ACCEPT;
 	}
 

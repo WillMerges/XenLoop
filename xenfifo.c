@@ -156,7 +156,6 @@ int xf_destroy(xf_handle_t *xfl)
 	unsigned int num_pages;
 	int grefs[MAX_FIFO_PAGES];
 	int dgref;
-	int page_order;
 
 	TRACE_ENTRY;
 
