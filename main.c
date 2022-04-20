@@ -875,7 +875,7 @@ struct nf_hook_ops iphook_out_ops = {
 	// .owner = THIS_MODULE,
 	.pf = PF_INET,
 	// .hooknum = NF_INET_POST_ROUTING, // TODO use NF_IP_LOCAL_OUT instead
-	.hooknum = NF_IP_LOCAL_OUT,
+	.hooknum = NF_INET_LOCAL_OUT,
 	.priority = 10,
 };
 
