@@ -77,7 +77,7 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 
 
 	// xfl->descriptor = (xf_descriptor_t *) __get_free_page(GFP_ATOMIC);
-	xfl->descriptor = (xf_descriptor_t*) kmalloc(PAGE_SIZE);
+	xfl->descriptor = (xf_descriptor_t*) kmalloc(PAGE_SIZE, GFP_ATOMIC);
 	if(!xfl->descriptor) {
 		EPRINTK("Cannot allocate descriptor memory page for FIFO\n");
 		goto err;
@@ -85,7 +85,7 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 	xfl->descriptor->num_pages = (1<<page_order);
 
 	// xfl->fifo = (void *) __get_free_pages(GFP_ATOMIC, page_order);
-	xfl->fifo = (void*) kmalloc(xfl->descriptor->num_pages * PAGE_SIZE);
+	xfl->fifo = (void*) kmalloc(xfl->descriptor->num_pages * PAGE_SIZE, GFP_ATOMIC);
 	if(!xfl->fifo) {
 		EPRINTK("Cannot allocate buffer memory pages for FIFO\n");
 		goto err;
@@ -254,8 +254,8 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 	xfc->dhandle = map_op.handle;
 
 	// allocate our own pages for the FIFO based on the number of pages listed in the descriptor
-	// xfc->fifo = (void*) kmalloc(xfc->descriptor->num_pages * PAGE_SIZE, GFP_ATOMIC);
-	xfc->fifo = (void*) kmalloc(64 * PAGE_SIZE, GFP_ATOMIC);
+	xfc->fifo = (void*) kmalloc(xfc->descriptor->num_pages * PAGE_SIZE, GFP_ATOMIC);
+	// xfc->fifo = (void*) kmalloc(64 * PAGE_SIZE, GFP_ATOMIC);
 
 	if(!xfc->fifo) {
 		EPRINTK("Cannot allocate %u memory pages for FIFO\n", xfc->descriptor->num_pages);
