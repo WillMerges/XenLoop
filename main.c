@@ -808,6 +808,7 @@ static unsigned int iphook_in(
 	// if (!(e = lookup_table(&mac_domid_map, src_mac))) {
 	// 	return ret;
 	// }
+	DPRINTK("Hooked IP: %lu\n", ip_hdr(skb)->daddr);
 	if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
 		return ret;
 	}
