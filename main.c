@@ -716,8 +716,7 @@ inline int xmit_packets(struct sk_buff *skb)
 static unsigned int iphook_out(
 	void* priv,
 	struct sk_buff *skb,
-	const struct nf_hook_state* state)
-{
+	const struct nf_hook_state* state) {
 	Entry * e;
 	int ret = NF_ACCEPT;
         // struct dst_entry *dst = skb->dst;
@@ -750,8 +749,8 @@ static unsigned int iphook_out(
 	// 	return NF_ACCEPT;
 	// }
 
-	DPRINTK("Hooked out IP: %u\n", ip_hdr(skb)->daddr);
-	if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
+	DPRINTK("Hooked out IP: %u\n", htonl(ip_hdr(skb)->daddr));
+	if(!(e = lookup_table_ip(&ip_domid_map, htonl(ip_hdr(skb)->daddr)))) {
 		DPRINTK("Not in table, using normal routing\n");
 		return NF_ACCEPT;
 	}
@@ -781,6 +780,7 @@ static unsigned int iphook_out(
 				goto out;
 			}
 			// if_fifo++;
+            DPRINTK("packet sent using XenLoop\n");
 			ret = NF_STOLEN;
 			break;
 
