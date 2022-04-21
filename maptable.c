@@ -101,7 +101,7 @@ inline void insert_table_ip(HashTable* ht, u32 ip, Entry* e) {
 
 	spin_lock_irqsave(&glock, flags);
 	// list_add(&e->mapping, &(b->bucket));
-	list_add(&e->mapping, &(b->bucket));
+	list_add(&e->ip_mapping, &(b->bucket));
 	ht->count++;
 	spin_unlock_irqrestore(&glock, flags);
 }
@@ -161,7 +161,7 @@ inline void remove_entry_ip(HashTable* ht, u32 ip) {
 		struct list_head * x;
 		Entry * e;
 		list_for_each(x, &(b->bucket)) {
-			e = list_entry(x, Entry, mapping);
+			e = list_entry(x, Entry, ip_mapping);
 			if(ip == e->ip) {
 				// remove_entry(ht, e, x);
 				e->ip = 0;
@@ -229,7 +229,7 @@ inline void * lookup_table_ip(HashTable * ht, u32 ip) {
 		struct list_head * x;
 		Entry * e;
 		list_for_each(x, &(b->bucket)) {
-			e = list_entry(x, Entry, mapping);
+			e = list_entry(x, Entry, ip_mapping);
 			if(e->ip == ip) {
 				d = e;
 				break;
