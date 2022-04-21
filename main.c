@@ -868,7 +868,6 @@ void net_exit(void)
 
 	nf_unregister_net_hook(&init_net, &iphook_in_ops);
 	nf_unregister_net_hook(&init_net, &iphook_out_ops);
-	nf_unregister_net_hook(&init_net, &hook_arp_ops);
 
 	if(NIC) dev_put(NIC);
 
