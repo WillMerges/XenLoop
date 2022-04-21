@@ -88,7 +88,7 @@ inline void insert_table(HashTable * ht, void * key, u8 domid)
 	spin_unlock_irqrestore(&glock, flags);
 }
 
-inline void insert_table_ip(HashTable* ht, u32 ip, Entry* old_entry) {
+inline void insert_table_ip(HashTable* ht, u32 ip, Entry* e) {
 	Bucket * b = &ht->table[hash_ip(ip)];
 	// Entry * e;
 	ulong flags;
