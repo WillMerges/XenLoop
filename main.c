@@ -712,8 +712,9 @@ static unsigned int iphook_out(
 	const struct nf_hook_state* state) {
 	Entry * e;
 	int ret = NF_ACCEPT;
-    struct dst_entry *dst = skb->dst;
-    struct neighbour *neigh = dst->neighbour;
+
+    // struct dst_entry *dst = skb->dst;
+    // struct neighbour *neigh = dst->neighbour;
 	// TODO do we need to do this?
 	// can't we just look at eth_hdr of the skb
 	struct neighbour *neigh = dst_neigh_lookup_skb(skb_dst(skb), skb);
