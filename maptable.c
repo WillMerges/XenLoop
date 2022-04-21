@@ -154,6 +154,7 @@ inline void remove_entry_mac(HashTable* ht, void* mac) {
 }
 
 inline void remove_entry_ip(HashTable* ht, u32 ip) {
+	ulong flags;
 	Bucket * b = &ht->table[hash_ip(ip)];
 
 	if(!list_empty(&b->bucket)) {
@@ -175,6 +176,8 @@ inline void remove_entry_ip(HashTable* ht, u32 ip) {
 }
 
 inline void remove_entry_simple(HashTable* ht, struct list_head* x) {
+	ulong flags;
+
 	spin_lock_irqsave(&glock, flags);
 	list_del(x);
 	ht->count--;
