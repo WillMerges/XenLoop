@@ -750,7 +750,7 @@ static unsigned int iphook_out(
 	// }
 
 	// DPRINTK("Hooked out IP: %\n", htonl(ip_hdr(skb)->daddr));
-	if(!(e = lookup_table_ip(&ip_domid_map, htonl(ip_hdr(skb)->daddr)))) {
+	if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
 		// DPRINTK("Not in table, using normal routing\n");
 		return NF_ACCEPT;
 	}
@@ -856,7 +856,7 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 
 	memcpy((void*)&ip, (void*)(&(hdr->ar_op)) + 2 + ETH_ALEN, 4);
 
-	if(NULL == lookup_table_ip(&ip_domid_map, ip)) {
+	if(NULL == lookup_table_ip(&ip_domid_map, htonl(ip))) {
 		insert_table_ip(&ip_domid_map, ip, e);
 		DPRINTK("Added IP: %u to table\n", ip);
 	}
