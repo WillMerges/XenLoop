@@ -1084,7 +1084,7 @@ static void xenloop_exit(void)
 	if(pending_thread)
 		kthread_stop(pending_thread);
 
-	mark_suspend(&mac_domid_map);
+	// mark_suspend(&mac_domid_map);
 
 	if(suspend_thread)
 		kthread_stop(suspend_thread);
