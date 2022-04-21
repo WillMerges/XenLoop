@@ -1095,7 +1095,7 @@ static void xenloop_exit(void)
 	clean_table(&mac_domid_map);
 
 	// don't fully clean, just destroy cache
-	kmem_cache_destroy(ip_domid_map->entries);
+	kmem_cache_destroy(ip_domid_map.entries);
 
 	DPRINTK("Exiting xenloop module.\n");
 	TRACE_EXIT;
