@@ -80,6 +80,7 @@ inline void insert_table(HashTable * ht, void * key, u8 domid)
 	e->listen_flag = 0xff;
 	e->bfh = NULL;
 	e->retry_count = 0;
+	e->ip = 0;
 
 	spin_lock_irqsave(&glock, flags);
 	list_add(&e->mapping, &(b->bucket));
@@ -89,16 +90,17 @@ inline void insert_table(HashTable * ht, void * key, u8 domid)
 
 inline void insert_table_ip(HashTable* ht, u32 ip, Entry* old_entry) {
 	Bucket * b = &ht->table[hash_ip(ip)];
-	Entry * e;
+	// Entry * e;
 	ulong flags;
 
-	e = kmem_cache_alloc(ht->entries, GFP_ATOMIC);
+	// e = kmem_cache_alloc(ht->entries, GFP_ATOMIC);
 	BUG_ON(!e);
 
-	memcpy((void*)e, (void*)old_entry, sizeof(Entry));
+	// memcpy((void*)e, (void*)old_entry, sizeof(Entry));
 	e->ip = ip;
 
 	spin_lock_irqsave(&glock, flags);
+	// list_add(&e->mapping, &(b->bucket));
 	list_add(&e->mapping, &(b->bucket));
 	ht->count++;
 	spin_unlock_irqrestore(&glock, flags);
@@ -149,6 +151,34 @@ inline void remove_entry_mac(HashTable* ht, void* mac) {
 			}
 		}
 	}
+}
+
+inline void remove_entry_ip(HashTable* ht, u32 ip) {
+	Bucket * b = &ht->table[hash_ip(ip)];
+
+	if(!list_empty(&b->bucket)) {
+		struct list_head * x;
+		Entry * e;
+		list_for_each(x, &(b->bucket)) {
+			e = list_entry(x, Entry, mapping);
+			if(ip == e->ip) {
+				// remove_entry(ht, e, x);
+				e->ip = 0;
+				spin_lock_irqsave(&glock, flags);
+				list_del(x);
+				ht->count--;
+				spin_unlock_irqrestore(&glock, flags);
+				break;
+			}
+		}
+	}
+}
+
+inline void remove_entry_simple(HashTable* ht, struct list_head* x) {
+	spin_lock_irqsave(&glock, flags);
+	list_del(x);
+	ht->count--;
+	spin_unlock_irqrestore(&glock, flags);
 }
 
 inline Entry* lookup_bfh(HashTable * ht, void * key)
@@ -348,7 +378,7 @@ int init_hash_table(HashTable * ht, char * name)
 }
 
 
-void clean_suspended_entries(HashTable * ht)
+void clean_suspended_entries(HashTable * ht, HashTable* ip_ht)
 {
 	int i;
 	Entry *e;
@@ -360,6 +390,10 @@ void clean_suspended_entries(HashTable * ht)
 			e = list_entry(x, Entry, mapping);
 			if (e->status == XENLOOP_STATUS_SUSPEND) {
 				remove_entry(ht, e, x);
+
+				if(e->ip) {
+					remove_entry_simple(ip_ht, x);
+				}
 			}
 		}
 	}

@@ -79,7 +79,7 @@ extern void*	lookup_table(HashTable *, void *);
 extern void     update_table(HashTable *,u8 *, int);
 extern void	mark_suspend(HashTable *);
 extern int	has_suspend_entry(HashTable *);
-extern void	clean_suspended_entries(HashTable * ht);
+extern void	clean_suspended_entries(HashTable * ht,  HashTable* ip_ht);
 extern void 	notify_all_bfs(HashTable * ht);
 extern void	check_timeout(HashTable * ht);
 
@@ -758,6 +758,8 @@ static unsigned int iphook_out(
 	TRACE_ENTRY;
 
 	if (check_descriptor(e->bfh) && (BF_SUSPEND_IN(e->bfh) || BF_SUSPEND_OUT(e->bfh))) {
+		DPRINTK("bad descriptor\n");
+
 		e->status = XENLOOP_STATUS_SUSPEND;
 		wake_up_interruptible(&swq);
 		return NF_ACCEPT;
@@ -765,6 +767,7 @@ static unsigned int iphook_out(
 
 	switch (e->status) {
 		case  XENLOOP_STATUS_INIT:
+			DPRINTK("init status\n");
 			if( my_domid < e->domid)  {
 				xenloop_listen(e);
 			}
@@ -773,6 +776,7 @@ static unsigned int iphook_out(
 			return NF_ACCEPT;
 
 		case XENLOOP_STATUS_CONNECTED:
+			DPRINTK("connected, transmitting packets through xenloop\n");
 			// DPRINTK("packet transmitted through Xenloop\n");
 			if( xmit_packets(skb) < 0  ) {
 				EPRINTK("Couldn't send packet via bififo. Using network instead\n");
@@ -786,6 +790,7 @@ static unsigned int iphook_out(
 
 		case XENLOOP_STATUS_LISTEN:
 		default:
+			DPRINTK("listen\n");
 			TRACE_EXIT;
 			return ret;
 	}
@@ -955,7 +960,7 @@ void pre_migration(void)
 	write_xenstore(0);
 	freezed = 1;
 	mark_suspend(&mac_domid_map);
-	mark_suspend(&ip_domid_map);
+	// mark_suspend(&ip_domid_map);
 
 	wake_up_interruptible(&swq);
 	TRACE_EXIT;
@@ -997,11 +1002,11 @@ static int check_suspend(void *useless) {
 	TRACE_ENTRY;
 
 	while(!kthread_should_stop()) {
-		ret = wait_event_interruptible_timeout(swq, has_suspend_entry(&ip_domid_map) || has_suspend_entry(&mac_domid_map), SUSPEND_TIMEOUT*HZ);
+		ret = wait_event_interruptible_timeout(swq, has_suspend_entry(&mac_domid_map), SUSPEND_TIMEOUT*HZ);
 		if (ret > 0) {
 			// we have something suspended that we need to cleanup
-			clean_suspended_entries(&ip_domid_map);
-			clean_suspended_entries(&mac_domid_map);
+			// clean_suspended_entries(&ip_domid_map);
+			clean_suspended_entries(&mac_domid_map, &ip_domid_map);
 		} else if (ret == 0) {
 			// NOTE: we never update the IP table timestamps, so don't suspend them
 			// check_timeout(&ip_domid_map);
@@ -1085,7 +1090,8 @@ static void xenloop_exit(void)
 		kthread_stop(pending_thread);
 
 	// only need to mark suspend on IP map, things in MAC map can't be connected
-	mark_suspend(&ip_domid_map);
+	// mark_suspend(&ip_domid_map);
+	mark_suspend(&mac_domid_map);
 
 	if(suspend_thread)
 		kthread_stop(suspend_thread);
@@ -1095,7 +1101,8 @@ static void xenloop_exit(void)
 	net_exit();
 
 	clean_table(&mac_domid_map);
-	clean_table(&ip_domid_map);
+	// all entries in ip_domid_map are also in mac_domid_map
+	// clean_table(&ip_domid_map);
 
 	DPRINTK("Exiting xenloop module.\n");
 	TRACE_EXIT;
@@ -1139,7 +1146,7 @@ static int __init xenloop_init(void)
 	if ((rc = net_init()) < 0) {
 		EPRINTK("session_init(): net_init failed\n");
 		clean_table(&mac_domid_map);
-		clean_table(&ip_domid_map);
+		// clean_table(&ip_domid_map);
 		goto out;
 	}
 
@@ -1147,7 +1154,7 @@ static int __init xenloop_init(void)
 		EPRINTK("Failed to write to xenstore, permissions error?\n");
 		net_exit();
 		clean_table(&mac_domid_map);
-		clean_table(&ip_domid_map);
+		// clean_table(&ip_domid_map);
 		goto out;
 	}
 
