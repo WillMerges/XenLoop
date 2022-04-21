@@ -855,7 +855,7 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 	// }
 
 	memcpy((void*)&ip, (void*)(&(hdr->ar_op)) + 2 + ETH_ALEN, 4);
-	ip = htonl(ip);
+	// ip = htonl(ip);
 
 	if(NULL == lookup_table_ip(&ip_domid_map, ip)) {
 		insert_table_ip(&ip_domid_map, ip, e);
