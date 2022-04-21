@@ -675,8 +675,8 @@ inline int xmit_packets(struct sk_buff *skb)
 		BUG_ON(!skb);
 
 		// TODO store skb and entry together? so we don't have to do this lookup
-		// e = lookup_table(&mac_domid_map, dst_neigh_lookup_skb(skb_dst(skb), skb)->ha);
-		e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr);
+		e = lookup_table(&mac_domid_map, dst_neigh_lookup_skb(skb_dst(skb), skb)->ha);
+		// e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr);
 		BUG_ON(!e);
 
 		rc = xmit_large_pkt(skb, e->bfh->out);
@@ -723,7 +723,7 @@ static unsigned int iphook_out(
         // struct neighbour *neigh = dst->neighbour;
 	// TODO do we need to do this?
 	// can't we just look at eth_hdr of the skb
-	// struct neighbour *neigh = dst_neigh_lookup_skb(skb_dst(skb), skb);
+	struct neighbour *neigh = dst_neigh_lookup_skb(skb_dst(skb), skb);
 
 	// TODO just tried this, it didn't work
 	// LOL
@@ -735,25 +735,25 @@ static unsigned int iphook_out(
 	// if (skb->len > 32768*8)  if_over++;
 
 
-    // if (!neigh) {
-	// 	return NF_ACCEPT;
-	// }
-
-
-	// if (!(neigh->nud_state & (NUD_CONNECTED|NUD_DELAY|NUD_PROBE) )) {
-	// 	return NF_ACCEPT;
-	// }
-
-	// if (!(e = lookup_table(&mac_domid_map, neigh->ha))) {
-	// if(!(e = lookup_table(&mac_domid_map, dst_mac))) {
-	// 	return NF_ACCEPT;
-	// }
-
-	// DPRINTK("Hooked out IP: %\n", htonl(ip_hdr(skb)->daddr));
-	if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
-		// DPRINTK("Not in table, using normal routing\n");
+    if (!neigh) {
 		return NF_ACCEPT;
 	}
+
+
+	if (!(neigh->nud_state & (NUD_CONNECTED|NUD_DELAY|NUD_PROBE) )) {
+		return NF_ACCEPT;
+	}
+
+	if (!(e = lookup_table(&mac_domid_map, neigh->ha))) {
+	// if(!(e = lookup_table(&mac_domid_map, dst_mac))) {
+		return NF_ACCEPT;
+	}
+
+	// DPRINTK("Hooked out IP: %\n", htonl(ip_hdr(skb)->daddr));
+	// if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
+	// 	// DPRINTK("Not in table, using normal routing\n");
+	// 	return NF_ACCEPT;
+	// }
 
 	TRACE_ENTRY;
 
