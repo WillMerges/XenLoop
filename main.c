@@ -712,16 +712,16 @@ static unsigned int iphook_out(
 	const struct nf_hook_state* state) {
 	Entry * e;
 	int ret = NF_ACCEPT;
-        // struct dst_entry *dst = skb->dst;
-        // struct neighbour *neigh = dst->neighbour;
+    struct dst_entry *dst = skb->dst;
+    struct neighbour *neigh = dst->neighbour;
 	// TODO do we need to do this?
 	// can't we just look at eth_hdr of the skb
-	// struct neighbour *neigh = dst_neigh_lookup_skb(skb_dst(skb), skb);
+	struct neighbour *neigh = dst_neigh_lookup_skb(skb_dst(skb), skb);
 
 	// TODO just tried this, it didn't work
 	// LOL
 	// POST_ROUTING means the kernel has destined this packet for elsewhere, we can't hook after a full packet assembly (I think)
-	u8* dst_mac = eth_hdr(skb)->h_dest;
+	// u8* dst_mac = eth_hdr(skb)->h_dest;
 
 	// TODO this seems to be just debugging info, remove
 	// if_total++;
@@ -737,8 +737,8 @@ static unsigned int iphook_out(
 		return NF_ACCEPT;
 	}
 
-	// if (!(e = lookup_table(&mac_domid_map, neigh->ha))) {
-	if(!(e = lookup_table(&mac_domid_map, dst_mac))) {
+	if (!(e = lookup_table(&mac_domid_map, neigh->ha))) {
+	// if(!(e = lookup_table(&mac_domid_map, dst_mac))) {
 		return NF_ACCEPT;
 	}
 
