@@ -675,8 +675,8 @@ inline int xmit_packets(struct sk_buff *skb)
 		BUG_ON(!skb);
 
 		// TODO store skb and entry together? so we don't have to do this lookup
-		e = lookup_table(&mac_domid_map, dst_neigh_lookup_skb(skb_dst(skb), skb)->ha);
-		// e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr);
+		// e = lookup_table(&mac_domid_map, dst_neigh_lookup_skb(skb_dst(skb), skb)->ha);
+		e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr);
 		BUG_ON(!e);
 
 		rc = xmit_large_pkt(skb, e->bfh->out);
@@ -881,8 +881,8 @@ struct nf_hook_ops iphook_out_ops = {
 	.hook = iphook_out,
 	// .owner = THIS_MODULE,
 	.pf = PF_INET,
-	.hooknum = NF_INET_POST_ROUTING, // TODO use NF_IP_LOCAL_OUT instead
-	// .hooknum = NF_INET_LOCAL_OUT,
+	// .hooknum = NF_INET_POST_ROUTING, // TODO use NF_IP_LOCAL_OUT instead
+	.hooknum = NF_INET_LOCAL_OUT,
 	.priority = 10,
 };
 
