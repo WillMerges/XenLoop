@@ -705,7 +705,7 @@ inline int xmit_packets(struct sk_buff *skb)
 	// let's comment it out and see if it does anything - NOTE: it broke :( see above
 	// I'm assuming we have to wait to send the notify?
 	// notify_all_bfs(&mac_domid_map);
-	DPRINKT("notify!\n");
+	DPRINTK("notify!\n");
 	notify_all_bfs(&ip_domid_map);
 
 	TRACE_EXIT;
