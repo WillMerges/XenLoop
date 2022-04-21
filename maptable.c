@@ -222,6 +222,7 @@ inline void * lookup_table(HashTable * ht, void * key)
 }
 
 inline void * lookup_table_ip(HashTable * ht, u32 ip) {
+	DPRINTK("lookup table IP\n");
 	Entry * d = NULL;
 	Bucket * b = &ht->table[hash_ip(ip)];
 

@@ -751,7 +751,7 @@ static unsigned int iphook_out(
 
 	// DPRINTK("Hooked out IP: %\n", htonl(ip_hdr(skb)->daddr));
 	if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
-	// 	// DPRINTK("Not in table, using normal routing\n");
+		DPRINTK("Not in table, using normal routing\n");
 		return NF_ACCEPT;
 	}
 
