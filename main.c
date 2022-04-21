@@ -105,7 +105,7 @@ DECLARE_WAIT_QUEUE_HEAD(pending_wq);
 extern void insert_table_ip(HashTable* ht, u32 ip, Entry* old_entry);
 extern void * lookup_table_ip(HashTable * ht, u32 ip);
 extern void remove_entry_mac(HashTable* ht, void* mac);
-extern void init_hash_table_ip(HashTable* ht);
+extern int init_hash_table_ip(HashTable* ht);
 
 HashTable mac_domid_map;
 HashTable ip_domid_map;
