@@ -289,7 +289,7 @@ void notify_all_bfs(HashTable * ht)
 
 	for(i = 0; i < XENLOOP_HASH_SIZE; i++) {
 		list_for_each_safe(x, y, &(table[i].bucket)) {
-			e = list_entry(x, Entry, mapping);
+			e = list_entry(x, Entry, ip_mapping);
 			if ( check_descriptor(e->bfh) && (xf_size( e->bfh->out ) > 0) )
 					bf_notify(e->bfh->port);
 		}
