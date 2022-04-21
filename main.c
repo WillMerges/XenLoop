@@ -705,7 +705,6 @@ inline int xmit_packets(struct sk_buff *skb)
 	// let's comment it out and see if it does anything - NOTE: it broke :( see above
 	// I'm assuming we have to wait to send the notify?
 	// notify_all_bfs(&mac_domid_map);
-	DPRINTK("notify!\n");
 	notify_all_bfs(&ip_domid_map);
 
 	TRACE_EXIT;
@@ -750,16 +749,16 @@ static unsigned int iphook_out(
 	// 	return NF_ACCEPT;
 	// }
 
-	DPRINTK("Hooked out IP: %u\n", htonl(ip_hdr(skb)->daddr));
+	// DPRINTK("Hooked out IP: %u\n", htonl(ip_hdr(skb)->daddr));
 	if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
-		DPRINTK("Not in table, using normal routing\n");
+		// DPRINTK("Not in table, using normal routing\n");
 		return NF_ACCEPT;
 	}
 
 	TRACE_ENTRY;
 
 	if (check_descriptor(e->bfh) && (BF_SUSPEND_IN(e->bfh) || BF_SUSPEND_OUT(e->bfh))) {
-		DPRINTK("bad descriptor\n");
+		// DPRINTK("bad descriptor\n");
 
 		e->status = XENLOOP_STATUS_SUSPEND;
 		wake_up_interruptible(&swq);
@@ -768,7 +767,7 @@ static unsigned int iphook_out(
 
 	switch (e->status) {
 		case  XENLOOP_STATUS_INIT:
-			DPRINTK("init status\n");
+			// DPRINTK("init status\n");
 			if( my_domid < e->domid)  {
 				xenloop_listen(e);
 			}
@@ -777,21 +776,21 @@ static unsigned int iphook_out(
 			return NF_ACCEPT;
 
 		case XENLOOP_STATUS_CONNECTED:
-			DPRINTK("connected, transmitting packets through xenloop\n");
+			// DPRINTK("connected, transmitting packets through xenloop\n");
 			// DPRINTK("packet transmitted through Xenloop\n");
 			if( xmit_packets(skb) < 0  ) {
-				EPRINTK("Couldn't send packet via bififo. Using network instead\n");
+				// EPRINTK("Couldn't send packet via bififo. Using network instead\n");
 				ret = NF_ACCEPT;
 				goto out;
 			}
 			// if_fifo++;
-            DPRINTK("packet sent using XenLoop\n");
+            // DPRINTK("packet sent using XenLoop\n");
 			ret = NF_STOLEN;
 			break;
 
 		case XENLOOP_STATUS_LISTEN:
 		default:
-			DPRINTK("listen\n");
+			// DPRINTK("listen\n");
 			TRACE_EXIT;
 			return ret;
 	}
@@ -815,7 +814,8 @@ static unsigned int iphook_in(
 	// if (!(e = lookup_table(&mac_domid_map, src_mac))) {
 	// 	return ret;
 	// }
-	DPRINTK("Hooked in IP: %u\n", ip_hdr(skb)->daddr);
+
+	// DPRINTK("Hooked in IP: %u\n", ip_hdr(skb)->daddr);
 	if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
 		return ret;
 	}
