@@ -222,7 +222,6 @@ inline void * lookup_table(HashTable * ht, void * key)
 }
 
 inline void * lookup_table_ip(HashTable * ht, u32 ip) {
-	DPRINTK("lookup table IP\n");
 	Entry * d = NULL;
 	Bucket * b = &ht->table[hash_ip(ip)];
 
@@ -230,7 +229,6 @@ inline void * lookup_table_ip(HashTable * ht, u32 ip) {
 		struct list_head * x;
 		Entry * e;
 		list_for_each(x, &(b->bucket)) {
-			DPRINTK("miss\n");
 			e = list_entry(x, Entry, ip_mapping);
 			if(e->ip == ip) {
 				d = e;
