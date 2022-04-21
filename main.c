@@ -79,7 +79,7 @@ extern void*	lookup_table(HashTable *, void *);
 extern void     update_table(HashTable *,u8 *, int);
 extern void	mark_suspend(HashTable *);
 extern int	has_suspend_entry(HashTable *);
-extern void	clean_suspended_entries(HashTable * ht,  HashTable* ip_ht);
+extern void	clean_suspended_entries(HashTable * ht);
 extern void 	notify_all_bfs(HashTable * ht);
 extern void	check_timeout(HashTable * ht);
 
@@ -801,11 +801,6 @@ static unsigned int iphook_in(
 	if (!(e = lookup_table(&mac_domid_map, src_mac))) {
 		return ret;
 	}
-
-	// DPRINTK("Hooked in IP: %u\n", ip_hdr(skb)->daddr);
-	// if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
-	// 	return ret;
-	// }
 
 	if ((e->status == XENLOOP_STATUS_INIT) && (my_domid < e->domid))
 		xenloop_listen(e);
