@@ -380,6 +380,19 @@ int init_hash_table(HashTable * ht, char * name)
 	return 0;
 }
 
+int init_hash_table_ip(HashTable* ht) {
+	int i;
+
+	ht->count 	= 0;
+	ht->entries = NULL;
+
+	for(i = 0; i < XENLOOP_HASH_SIZE; i++) {
+		INIT_LIST_HEAD(&(ht->table[i].bucket));
+	}
+
+	return 0;
+}
+
 
 void clean_suspended_entries(HashTable * ht, HashTable* ip_ht)
 {

@@ -105,6 +105,7 @@ DECLARE_WAIT_QUEUE_HEAD(pending_wq);
 extern void insert_table_ip(HashTable* ht, u32 ip, Entry* old_entry);
 extern void * lookup_table_ip(HashTable * ht, u32 ip);
 extern void remove_entry_mac(HashTable* ht, void* mac);
+extern void init_hash_table_ip(HashTable* ht);
 
 HashTable mac_domid_map;
 HashTable ip_domid_map;
@@ -1094,9 +1095,6 @@ static void xenloop_exit(void)
 
 	clean_table(&mac_domid_map);
 
-	// don't fully clean, just destroy cache
-	kmem_cache_destroy(ip_domid_map.entries);
-
 	DPRINTK("Exiting xenloop module.\n");
 	TRACE_EXIT;
 }
@@ -1128,7 +1126,7 @@ static int __init xenloop_init(void)
 		goto out;
 	}
 
-	if(init_hash_table(&ip_domid_map, "IP_DOMID_MAP_Table") != 0) {
+	if(init_hash_table_ip(&ip_domid_map) != 0) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -1169,13 +1167,6 @@ static int __init xenloop_init(void)
 		rc = -1;
 		goto out;
 	}
-
-	// ip_map_thread = kthread_run(ip_check_map, NULL, "IP map");
-	// if(!ip_map_thread) {
-	// 	xenloop_exit();
-	// 	rc = -1;
-	// 	goto out;
-	// }
 
 	DPRINTK("XENLOOP successfully initialized!\n");
 
