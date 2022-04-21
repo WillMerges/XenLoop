@@ -87,9 +87,7 @@ extern void migrate_send(void);
 
 typedef struct Entry {
 	struct list_head mapping;
-	struct list_head ip_mapping;
 	u8		mac[ETH_ALEN];
-	u32		ip;
 	u8		status;
 	u8		listen_flag;
 	u8		retry_count;

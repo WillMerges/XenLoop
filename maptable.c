@@ -55,14 +55,6 @@ int  equal(void *pmac1, void *pmac2)
 };
 
 
-ulong hash_ip(u32 ip) {
-	return ip % XENLOOP_HASH_SIZE;
-}
-
-int equal_ip(u32 ip1, u32 ip2) {
-	return ip1 == ip2;
-}
-
 inline void insert_table(HashTable * ht, void * key, u8 domid)
 {
 	Bucket * b = &ht->table[hash(key)];
@@ -80,28 +72,9 @@ inline void insert_table(HashTable * ht, void * key, u8 domid)
 	e->listen_flag = 0xff;
 	e->bfh = NULL;
 	e->retry_count = 0;
-	e->ip = 0;
 
 	spin_lock_irqsave(&glock, flags);
 	list_add(&e->mapping, &(b->bucket));
-	ht->count++;
-	spin_unlock_irqrestore(&glock, flags);
-}
-
-inline void insert_table_ip(HashTable* ht, u32 ip, Entry* e) {
-	Bucket * b = &ht->table[hash_ip(ip)];
-	// Entry * e;
-	ulong flags;
-
-	// e = kmem_cache_alloc(ht->entries, GFP_ATOMIC);
-	BUG_ON(!e);
-
-	// memcpy((void*)e, (void*)old_entry, sizeof(Entry));
-	e->ip = ip;
-
-	spin_lock_irqsave(&glock, flags);
-	// list_add(&e->mapping, &(b->bucket));
-	list_add(&e->ip_mapping, &(b->bucket));
 	ht->count++;
 	spin_unlock_irqrestore(&glock, flags);
 }
@@ -137,52 +110,6 @@ inline void remove_entry(HashTable *ht, Entry *e, struct list_head *x) {
 	TRACE_EXIT;
 }
 
-inline void remove_entry_mac(HashTable* ht, void* mac) {
-	Bucket * b = &ht->table[hash(mac)];
-
-	if(!list_empty(&b->bucket)) {
-		struct list_head * x;
-		Entry * e;
-		list_for_each(x, &(b->bucket)) {
-			e = list_entry(x, Entry, mapping);
-			if(equal(mac, (u8 *) e->mac)) {
-				remove_entry(ht, e, x);
-				break;
-			}
-		}
-	}
-}
-
-inline void remove_entry_ip(HashTable* ht, u32 ip) {
-	ulong flags;
-	Bucket * b = &ht->table[hash_ip(ip)];
-
-	if(!list_empty(&b->bucket)) {
-		struct list_head * x;
-		Entry * e;
-		list_for_each(x, &(b->bucket)) {
-			e = list_entry(x, Entry, ip_mapping);
-			if(ip == e->ip) {
-				// remove_entry(ht, e, x);
-				e->ip = 0;
-				spin_lock_irqsave(&glock, flags);
-				list_del(x);
-				ht->count--;
-				spin_unlock_irqrestore(&glock, flags);
-				break;
-			}
-		}
-	}
-}
-
-inline void remove_entry_simple(HashTable* ht, struct list_head* x) {
-	ulong flags;
-
-	spin_lock_irqsave(&glock, flags);
-	list_del(x);
-	ht->count--;
-	spin_unlock_irqrestore(&glock, flags);
-}
 
 inline Entry* lookup_bfh(HashTable * ht, void * key)
 {
@@ -213,24 +140,6 @@ inline void * lookup_table(HashTable * ht, void * key)
 		list_for_each(x, &(b->bucket)) {
 			e = list_entry(x, Entry, mapping);
 			if(equal(key, (u8 *) e->mac)) {
-				d = e;
-				break;
-			}
-		}
-	}
-	return d;
-}
-
-inline void * lookup_table_ip(HashTable * ht, u32 ip) {
-	Entry * d = NULL;
-	Bucket * b = &ht->table[hash_ip(ip)];
-
-	if(!list_empty(&b->bucket)) {
-		struct list_head * x;
-		Entry * e;
-		list_for_each(x, &(b->bucket)) {
-			e = list_entry(x, Entry, ip_mapping);
-			if(e->ip == ip) {
 				d = e;
 				break;
 			}
@@ -381,7 +290,7 @@ int init_hash_table(HashTable * ht, char * name)
 }
 
 
-void clean_suspended_entries(HashTable * ht, HashTable* ip_ht)
+void clean_suspended_entries(HashTable * ht)
 {
 	int i;
 	Entry *e;
@@ -393,10 +302,6 @@ void clean_suspended_entries(HashTable * ht, HashTable* ip_ht)
 			e = list_entry(x, Entry, mapping);
 			if (e->status == XENLOOP_STATUS_SUSPEND) {
 				remove_entry(ht, e, x);
-
-				if(e->ip) {
-					remove_entry_simple(ip_ht, x);
-				}
 			}
 		}
 	}
