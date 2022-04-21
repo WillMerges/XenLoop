@@ -997,14 +997,11 @@ static int check_suspend(void *useless) {
 	TRACE_ENTRY;
 
 	while(!kthread_should_stop()) {
-		ret = wait_event_interruptible_timeout(swq, has_suspend_entry(&ip_domid_map) || has_suspend_entry(&mac_domid_map), SUSPEND_TIMEOUT*HZ);
+		ret = wait_event_interruptible_timeout(swq, has_suspend_entry(&mac_domid_map), SUSPEND_TIMEOUT*HZ);
 		if (ret > 0) {
 			// we have something suspended that we need to cleanup
-			clean_suspended_entries(&ip_domid_map);
 			clean_suspended_entries(&mac_domid_map);
 		} else if (ret == 0) {
-			// NOTE: we never update the IP table timestamps, so don't suspend them
-			// check_timeout(&ip_domid_map);
 			check_timeout(&mac_domid_map);
 		}
 	}
