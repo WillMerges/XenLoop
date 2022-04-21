@@ -1083,8 +1083,7 @@ static void xenloop_exit(void)
 	if(pending_thread)
 		kthread_stop(pending_thread);
 
-	// only need to mark suspend on IP map, things in MAC map can't be connected
-	mark_suspend(&ip_domid_map);
+	mark_suspend(&mac_domid_map);
 
 	if(suspend_thread)
 		kthread_stop(suspend_thread);
@@ -1094,7 +1093,9 @@ static void xenloop_exit(void)
 	net_exit();
 
 	clean_table(&mac_domid_map);
-	clean_table(&ip_domid_map);
+
+	// don't fully clean, just destroy cache
+	kmem_cache_destroy(ip_domid_map->entries);
 
 	DPRINTK("Exiting xenloop module.\n");
 	TRACE_EXIT;
