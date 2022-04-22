@@ -221,6 +221,24 @@ irqreturn_t bf_callback(int rq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static domid_t get_my_domid(void)
+{
+	char *domidstr;
+	domid_t domid;
+
+	domidstr = xenbus_read(XBT_NIL, "domid", "", NULL);
+	if ( IS_ERR(domidstr) ) {
+		EPRINTK("xenbus_read error\n");
+		return PTR_ERR(domidstr);
+	}
+
+	domid = (domid_t) simple_strtoul(domidstr, NULL, 10);
+
+	kfree(domidstr);
+
+	return domid;
+}
+
 void free_evtch(int port, int irq, void *dev_id)
 {
 	struct evtchn_close op;
@@ -233,6 +251,7 @@ void free_evtch(int port, int irq, void *dev_id)
 
 	if(port) {
 		memset(&op, 0, sizeof(op));
+		op.dom = get_my_domid();
 		op.port = port;
 		ret = HYPERVISOR_event_channel_op(EVTCHNOP_close, &op);
 		if ( ret != 0 )

@@ -315,6 +315,8 @@ inline void check_timeout(HashTable * ht)
 					BF_SUSPEND_IN(e->bfh) = 1;
 					BF_SUSPEND_OUT(e->bfh) = 1;
 				}
+				
+				DPRINTK("marking entry as suspended\n");
 				e->status = XENLOOP_STATUS_SUSPEND;
 				found = 1;
 			}
