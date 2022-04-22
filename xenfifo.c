@@ -165,15 +165,6 @@ int xf_destroy(xf_handle_t *xfl)
 	}
 
 	num_pages = xfl->descriptor->num_pages;
-	// page_order = 0;
-	// while(1) {
-	// 	num_pages = num_pages >> 1;
-	// 	page_order++;
-	//
-	// 	if(num_pages == 1) {
-	// 		break;
-	// 	}
-	// }
 
 	// copy grefs so we can free the descriptor but still have the grefs
 	for(i=0; i < num_pages; i++) {
@@ -181,11 +172,10 @@ int xf_destroy(xf_handle_t *xfl)
 	}
 	dgref = xfl->descriptor->dgref;
 
-	// free_pages((unsigned long)xfl->fifo, page_order);
-	// free_page((unsigned long)xfl->descriptor);
-	kfree(xfl->fifo);
-	kfree(xfl->descriptor);
-	kfree(xfl);
+	// TODO add back
+	// kfree(xfl->fifo);
+	// kfree(xfl->descriptor);
+	// kfree(xfl);
 
 	// for(i=0; i < xfl->descriptor->num_pages; i++)
 		// gnttab_end_foreign_access_ref(xfl->descriptor->grefs[i], 0);
@@ -194,13 +184,6 @@ int xf_destroy(xf_handle_t *xfl)
 	}
 	// gnttab_end_foreign_access_ref(xfl->descriptor->dgref, 0);
 	gnttab_end_foreign_access_ref(dgref, 0);
-
-	DPRINTK("free_pages / kfree in xf_destroy\n");
-
-	// free_pages((unsigned long)xfl->fifo, xfl->descriptor->num_pages * PAGE_SIZE);
-	// free_page((unsigned long)xfl->descriptor);
-
-	// kfree(xfl);
 
 	TRACE_EXIT;
 	return 0;
@@ -329,17 +312,7 @@ int xf_disconnect(xf_handle_t *xfc)
 		goto err;
 	}
 
-	num_pages = xfc->descriptor->num_pages;
-
-	DPRINTK("fifo: %p, descriptor: %p, xfc: %p\n", xfc->fifo, xfc->descriptor, xfc);
-	kfree(xfc->fifo);
-	kfree((void*)(xfc->descriptor));
-
-	DPRINTK("memory freed\n");
-
-	// I think this unmap op sets the page as unusable or something so we have to free it first
-
-	for(i=0; i < num_pages; i++) {
+	for(i=0; i < xfc->descriptor->num_pages; i++) {
 		gnttab_set_unmap_op(&unmap_op, (unsigned long)(xfc->fifo + i*PAGE_SIZE),
 			GNTMAP_host_map, xfc->fhandles[i]);
 		ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
@@ -374,6 +347,8 @@ int xf_disconnect(xf_handle_t *xfc)
 	// kfree((void*)xfc);
 
 	// DPRINTK("memory freed!\n");
+	kfree(xfc->fifo);
+	kfree((void*)(xfc->descriptor));
 	kfree((void*)xfc);
 
 	DPRINTK("end of xf_disconnect\n");
