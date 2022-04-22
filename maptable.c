@@ -315,7 +315,7 @@ inline void check_timeout(HashTable * ht)
 					BF_SUSPEND_IN(e->bfh) = 1;
 					BF_SUSPEND_OUT(e->bfh) = 1;
 				}
-				
+
 				DPRINTK("marking entry as suspended\n");
 				e->status = XENLOOP_STATUS_SUSPEND;
 				found = 1;
@@ -410,11 +410,11 @@ void clean_suspended_entries(HashTable * ht, HashTable* ip_ht)
 		list_for_each_safe(x, y, &(table[i].bucket)) {
 			e = list_entry(x, Entry, mapping);
 			if (e->status == XENLOOP_STATUS_SUSPEND) {
-				remove_entry(ht, e, x);
-
 				if(e->ip) {
-					remove_entry_simple(ip_ht, x);
+					remove_entry_ip(ip_ht, e->ip);
 				}
+
+				remove_entry(ht, e, x);
 			}
 		}
 	}
