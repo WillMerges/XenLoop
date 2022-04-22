@@ -59,7 +59,7 @@ struct bf_handle {
 	domid_t remote_domid;
 	xf_handle_t *out;
 	xf_handle_t *in;
-	int port;
+	uint32_t port;
 	int irq;
 };
 typedef struct bf_handle bf_handle_t;
@@ -75,7 +75,7 @@ extern bf_handle_t *bf_create(domid_t, int);
 extern bf_handle_t *bf_connect(domid_t, int, int, int);
 extern void bf_destroy(bf_handle_t *);
 extern void bf_disconnect(bf_handle_t *);
-extern void bf_notify(int port);
+extern void bf_notify(uint32_t port);
 extern irqreturn_t bf_callback(int rq, void *dev_id);
 extern void migrate_save(void *);
 extern void migrate_send(void);

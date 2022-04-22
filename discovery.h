@@ -1,9 +1,9 @@
 /*
- *  XenLoop -- A High Performance Inter-VM Network Loopback 
+ *  XenLoop -- A High Performance Inter-VM Network Loopback
  *
  *  Installation and Usage instructions
  *
- *  Authors: 
+ *  Authors:
  *  	Jian Wang - Binghamton University (jianwang@cs.binghamton.edu)
  *  	Kartik Gopalan - Binghamton University (kartik@cs.binghamton.edu)
  *
@@ -49,15 +49,15 @@ typedef struct ethhdr 		ethhdr;
 
 typedef struct message {
 	u8		type;
-	
+
 	u8		mac_count;
 	u8		mac[MAX_MAC_NUM][ETH_ALEN];
 	domid_t 	domid;
 	domid_t	        guest_domids[MAX_MAC_NUM];
-	
+
 	int		gref_in;
 	int		gref_out;
-	int		remote_port;
+	uint32_t		remote_port;
 
 } message_t;
 

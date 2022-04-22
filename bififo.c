@@ -56,7 +56,7 @@ extern wait_queue_head_t swq;
 extern struct net_device *NIC;
 extern Entry*	lookup_bfh(HashTable *, void *);
 
-void bf_notify(int port)
+void bf_notify(uint32_t port)
 {
 	struct evtchn_send op;
 	int ret;
@@ -221,25 +221,7 @@ irqreturn_t bf_callback(int rq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static domid_t get_my_domid(void)
-{
-	char *domidstr;
-	domid_t domid;
-
-	domidstr = xenbus_read(XBT_NIL, "domid", "", NULL);
-	if ( IS_ERR(domidstr) ) {
-		EPRINTK("xenbus_read error\n");
-		return PTR_ERR(domidstr);
-	}
-
-	domid = (domid_t) simple_strtoul(domidstr, NULL, 10);
-
-	kfree(domidstr);
-
-	return domid;
-}
-
-void free_evtch(int port, int irq, void *dev_id)
+void free_evtch(uint32_t port, int irq, void *dev_id)
 {
 	struct evtchn_close op;
 	int ret;
@@ -251,7 +233,7 @@ void free_evtch(int port, int irq, void *dev_id)
 
 	if(port) {
 		memset(&op, 0, sizeof(op));
-		op.dom = get_my_domid();
+		DPRINTK("free port: %u\n", port)''
 		op.port = port;
 		ret = HYPERVISOR_event_channel_op(EVTCHNOP_close, &op);
 		if ( ret != 0 )
@@ -264,7 +246,7 @@ void free_evtch(int port, int irq, void *dev_id)
 
 
 
-int create_evtch(domid_t rdomid, int *port, int *irq, void *arg)
+int create_evtch(domid_t rdomid, uint32_t *port, int *irq, void *arg)
 {
 	struct evtchn_alloc_unbound op;
 	int ret;
@@ -292,7 +274,7 @@ int create_evtch(domid_t rdomid, int *port, int *irq, void *arg)
 	}
 
 	*irq = ret;
-	DB("unbound port = %d irq = %d\n", *port, *irq);
+	DB("unbound port = %u irq = %d\n", *port, *irq);
 
 	TRACE_EXIT;
 	return 0;
@@ -366,7 +348,7 @@ err:
 	return NULL;
 }
 
-int bind_evtch(domid_t rdomid, int rport, int *local_port, int *local_irq, void *arg)
+int bind_evtch(domid_t rdomid, uint32_t rport, uint32_t *local_port, int *local_irq, void *arg)
 {
 
 	struct evtchn_bind_interdomain op;
@@ -432,7 +414,7 @@ err:
 
 }
 
-bf_handle_t *bf_connect(domid_t rdomid, int rgref_in, int rgref_out, int rport)
+bf_handle_t *bf_connect(domid_t rdomid, int rgref_in, int rgref_out, uint32_t rport)
 {
 	bf_handle_t *bfc = NULL;
 	int ret;
