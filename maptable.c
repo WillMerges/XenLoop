@@ -115,6 +115,7 @@ inline void remove_entry(HashTable *ht, Entry *e, struct list_head *x) {
 	ht->count--;
 	spin_unlock_irqrestore(&glock, flags);
 
+	e->status  = XENLOOP_STATUS_INIT;
 	if (e->bfh) {
 		if(e->listen_flag) {
 			bf_destroy(e->bfh);
@@ -123,7 +124,6 @@ inline void remove_entry(HashTable *ht, Entry *e, struct list_head *x) {
 		}
 		e->bfh = NULL;
 	}
-	e->status  = XENLOOP_STATUS_INIT;
 
 	// if (e->ack_timer)
 		// del_timer_sync(e->ack_timer);
