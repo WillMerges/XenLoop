@@ -401,6 +401,8 @@ void clean_suspended_entries(HashTable * ht, HashTable* ip_ht)
 	struct list_head *x, *y;
 	Bucket * table = ht->table;
 
+	DPRINTK("clean suspended\n");
+
 	for(i = 0; i < XENLOOP_HASH_SIZE; i++) {
 		list_for_each_safe(x, y, &(table[i].bucket)) {
 			e = list_entry(x, Entry, mapping);
@@ -422,6 +424,8 @@ void clean_table(HashTable * ht)
 	Entry *e;
 	struct list_head *x, *y;
 	Bucket * table = ht->table;
+
+	DPRINTK("clean table\n");
 
 	for(i = 0; i < XENLOOP_HASH_SIZE; i++) {
 		list_for_each_safe(x, y, &(table[i].bucket)) {
