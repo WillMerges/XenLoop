@@ -181,7 +181,8 @@ void recv_packets(bf_handle_t *bfh)
 		spin_unlock_irqrestore(&recv_lock, flags);
 
 		// DPRINTK("packet received through xenloop\n");
-		netif_rx(skb);
+		// netif_rx(skb);
+		ip_local_deliver(skb);
 
 		// this isn't needed anymore, i think
 		// NIC->last_rx = jiffies;
