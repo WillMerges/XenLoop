@@ -274,6 +274,7 @@ int create_evtch(domid_t rdomid, uint32_t *port, int *irq, void *arg)
 	}
 
 	*irq = ret;
+	DPRINTK("bound port: %u\n", port);
 	DB("unbound port = %u irq = %d\n", *port, *irq);
 
 	TRACE_EXIT;
