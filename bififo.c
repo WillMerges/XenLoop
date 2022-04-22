@@ -204,16 +204,16 @@ irqreturn_t bf_callback(int rq, void *dev_id)
 
 	BUG_ON(!check_descriptor(bfh));
 
-	if (BF_SUSPEND_IN(bfh) || BF_SUSPEND_OUT(bfh)) {
-		Entry *e = lookup_bfh(&mac_domid_map, bfh);
-		BUG_ON(!e);
-
-		e->status = XENLOOP_STATUS_SUSPEND;
-
-		wake_up_interruptible(&swq);
-		TRACE_EXIT;
-		return IRQ_HANDLED;
-	}
+	// if (BF_SUSPEND_IN(bfh) || BF_SUSPEND_OUT(bfh)) {
+	// 	Entry *e = lookup_bfh(&mac_domid_map, bfh);
+	// 	BUG_ON(!e);
+	//
+	// 	e->status = XENLOOP_STATUS_SUSPEND;
+	//
+	// 	wake_up_interruptible(&swq);
+	// 	TRACE_EXIT;
+	// 	return IRQ_HANDLED;
+	// }
 
 	recv_packets(bfh);
 
