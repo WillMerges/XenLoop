@@ -40,6 +40,7 @@
 #include <linux/skbuff.h>
 #include <linux/if_ether.h>
 #include <linux/netdevice.h>
+#include <linux/net/ip.h>
 
 #include <asm/xen/hypercall.h>
 //#include <xen/driver_util.h>
