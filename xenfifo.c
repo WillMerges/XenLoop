@@ -304,7 +304,10 @@ err:
 int xf_disconnect(xf_handle_t *xfc)
 {
 	struct gnttab_unmap_grant_ref unmap_op;
-	int i, num_pages, ret;
+	int i, ret;
+	// unsigned int num_pages;
+	// int grefs[MAX_FIFO_PAGES];
+	// int dgref;
 	TRACE_ENTRY;
 
 	if(!xfc || !xfc->descriptor || !xfc->fifo) {
@@ -312,7 +315,9 @@ int xf_disconnect(xf_handle_t *xfc)
 		goto err;
 	}
 
-	for(i=0; i < xfc->descriptor->num_pages; i++) {
+	DPRINTK("descriptor: %p\n", xfc->descriptor);
+
+	for(i=0; i < num_pages; i++) {
 		gnttab_set_unmap_op(&unmap_op, (unsigned long)(xfc->fifo + i*PAGE_SIZE),
 			GNTMAP_host_map, xfc->fhandles[i]);
 		ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
