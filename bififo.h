@@ -72,7 +72,7 @@ typedef struct bf_handle bf_handle_t;
 #define BF_EVT_IRQ(handle) (handle->irq)
 
 extern bf_handle_t *bf_create(domid_t, int);
-extern bf_handle_t *bf_connect(domid_t, int, int, int);
+extern bf_handle_t *bf_connect(domid_t, int, int, uint32_t);
 extern void bf_destroy(bf_handle_t *);
 extern void bf_disconnect(bf_handle_t *);
 extern void bf_notify(uint32_t port);
