@@ -1134,7 +1134,7 @@ static int __init xenloop_init(void)
 	if ((rc = net_init()) < 0) {
 		EPRINTK("session_init(): net_init failed\n");
 		clean_table(&mac_domid_map);
-		clean_table(&ip_domid_map);
+		// clean_table(&ip_domid_map);
 		goto out;
 	}
 
@@ -1142,7 +1142,7 @@ static int __init xenloop_init(void)
 		EPRINTK("Failed to write to xenstore, permissions error?\n");
 		net_exit();
 		clean_table(&mac_domid_map);
-		clean_table(&ip_domid_map);
+		// clean_table(&ip_domid_map);
 		goto out;
 	}
 
