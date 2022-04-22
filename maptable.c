@@ -115,6 +115,9 @@ inline void remove_entry(HashTable *ht, Entry *e, struct list_head *x) {
 	ht->count--;
 	spin_unlock_irqrestore(&glock, flags);
 
+	DPRINK("remove suspended\n");
+
+	// change status first, so suspend doesn't call this while we're disconnecting
 	e->status  = XENLOOP_STATUS_INIT;
 	if (e->bfh) {
 		if(e->listen_flag) {
@@ -401,7 +404,7 @@ void clean_suspended_entries(HashTable * ht, HashTable* ip_ht)
 	struct list_head *x, *y;
 	Bucket * table = ht->table;
 
-	DPRINTK("clean suspended\n");
+	DPRINTK("clean suspended entries\n");
 
 	for(i = 0; i < XENLOOP_HASH_SIZE; i++) {
 		list_for_each_safe(x, y, &(table[i].bucket)) {

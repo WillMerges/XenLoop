@@ -955,7 +955,6 @@ void pre_migration(void)
 	write_xenstore(0);
 	freezed = 1;
 	mark_suspend(&mac_domid_map);
-	mark_suspend(&ip_domid_map);
 
 	wake_up_interruptible(&swq);
 	TRACE_EXIT;
