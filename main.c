@@ -752,7 +752,7 @@ static unsigned int iphook_out(
 
 	// DPRINTK("Hooked out IP: %\n", htonl(ip_hdr(skb)->daddr));
 	if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
-		DPRINTK("Not in table, using normal routing\n");
+		// DPRINTK("Not in table, using normal routing\n");
 		return NF_ACCEPT;
 	}
 
@@ -839,21 +839,14 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 		return ret;
 	}
 
-	DPRINTK("ARP header in\n");
+	// DPRINTK("ARP header in\n");
 	mac = (u8*)(&(hdr->ar_op)) + 2;
-	DPRINTK("Target MAC: " MAC_FMT "\n", MAC_NTOA(mac));
+	// DPRINTK("Target MAC: " MAC_FMT "\n", MAC_NTOA(mac));
 
 	if(!(e = lookup_table(&mac_domid_map, (void*)(&(hdr->ar_op)) + 2))) {
-		DPRINTK("ARP source Not in MAC table\n");
+		// DPRINTK("ARP source Not in MAC table\n");
 		return ret;
 	}
-
-	// TODO this should always be true
-	// everything in mac_domid_map should be in INIT
-	// if(e->status != XENLOOP_STATUS_INIT) {
-	// 	DPRINTK("In init phase\n");
-	// 	return ret;
-	// }
 
 	memcpy((void*)&ip, (void*)(&(hdr->ar_op)) + 2 + ETH_ALEN, 4);
 	// ip = htonl(ip);
