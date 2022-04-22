@@ -305,9 +305,6 @@ int xf_disconnect(xf_handle_t *xfc)
 {
 	struct gnttab_unmap_grant_ref unmap_op;
 	int i, ret;
-	// unsigned int num_pages;
-	// int grefs[MAX_FIFO_PAGES];
-	// int dgref;
 	TRACE_ENTRY;
 
 	if(!xfc || !xfc->descriptor || !xfc->fifo) {
@@ -353,7 +350,7 @@ int xf_disconnect(xf_handle_t *xfc)
 
 	// DPRINTK("memory freed!\n");
 	kfree(xfc->fifo);
-	// kfree((void*)(xfc->descriptor));
+	kfree((void*)(xfc->descriptor));
 	kfree((void*)xfc);
 
 	DPRINTK("end of xf_disconnect\n");
