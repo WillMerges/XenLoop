@@ -38,7 +38,7 @@
 
 #include <linux/netdevice.h>
 
-// #define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 #define TRACE_ENTRY printk(KERN_CRIT "Entering %s\n", __func__)
