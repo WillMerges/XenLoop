@@ -176,15 +176,6 @@ inline void remove_entry_ip(HashTable* ht, u32 ip) {
 	}
 }
 
-inline void remove_entry_simple(HashTable* ht, struct list_head* x) {
-	ulong flags;
-
-	spin_lock_irqsave(&glock, flags);
-	list_del(x);
-	ht->count--;
-	spin_unlock_irqrestore(&glock, flags);
-}
-
 inline Entry* lookup_bfh(HashTable * ht, void * key)
 {
 	int i;
