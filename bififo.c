@@ -233,7 +233,7 @@ void free_evtch(uint32_t port, int irq, void *dev_id)
 
 	if(port) {
 		memset(&op, 0, sizeof(op));
-		DPRINTK("free port: %u\n", port)''
+		DPRINTK("free port: %u\n", port);
 		op.port = port;
 		ret = HYPERVISOR_event_channel_op(EVTCHNOP_close, &op);
 		if ( ret != 0 )
