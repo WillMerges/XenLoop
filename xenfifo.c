@@ -317,7 +317,7 @@ int xf_disconnect(xf_handle_t *xfc)
 
 	DPRINTK("descriptor: %p\n", xfc->descriptor);
 
-	for(i=0; i < num_pages; i++) {
+	for(i=0; i < xfc->descriptor->num_pages; i++) {
 		gnttab_set_unmap_op(&unmap_op, (unsigned long)(xfc->fifo + i*PAGE_SIZE),
 			GNTMAP_host_map, xfc->fhandles[i]);
 		ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
@@ -353,7 +353,7 @@ int xf_disconnect(xf_handle_t *xfc)
 
 	// DPRINTK("memory freed!\n");
 	kfree(xfc->fifo);
-	kfree((void*)(xfc->descriptor));
+	// kfree((void*)(xfc->descriptor));
 	kfree((void*)xfc);
 
 	DPRINTK("end of xf_disconnect\n");
