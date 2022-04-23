@@ -183,8 +183,7 @@ void recv_packets(bf_handle_t *bfh)
 
 		// DPRINTK("packet received through xenloop\n");
 		// netif_rx(skb);
-		// ip_local_deliver(skb);
-		ip_rcv_core(skb, &init_net);
+		ip_local_deliver(skb);
 
 		// this isn't needed anymore, i think
 		// NIC->last_rx = jiffies;
