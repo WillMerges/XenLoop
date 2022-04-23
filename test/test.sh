@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TIME=120 # seconds
+TIME="120" # seconds
 IP_DOMU="10.10.10.169"
 IP_DOM0="10.10.10.1"
 
