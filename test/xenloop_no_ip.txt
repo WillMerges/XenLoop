@@ -1,0 +1,140 @@
+starting test on ubuntu1
+remote domU IP: 10.10.10.169
+remote dom0 IP: 10.10.10.1
+
+pinging remote domU
+PING 10.10.10.169 (10.10.10.169) 56(84) bytes of data.
+64 bytes from 10.10.10.169: icmp_seq=1 ttl=64 time=0.528 ms
+64 bytes from 10.10.10.169: icmp_seq=2 ttl=64 time=0.166 ms
+64 bytes from 10.10.10.169: icmp_seq=3 ttl=64 time=0.152 ms
+64 bytes from 10.10.10.169: icmp_seq=4 ttl=64 time=0.144 ms
+64 bytes from 10.10.10.169: icmp_seq=5 ttl=64 time=0.163 ms
+
+--- 10.10.10.169 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4099ms
+rtt min/avg/max/mdev = 0.144/0.230/0.528/0.149 ms
+
+running 120s UDP/TCP tests for 5 repetitions
+
+
+running round 1
+
+UDP round robin domU to domU, run #1
+MIGRATED UDP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.169 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+7752.987,124.29
+
+UDP round robin domU to dom0, run #1
+MIGRATED UDP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.1 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+6800.738,142.90
+
+TCP round robin domU to domU, run #1
+MIGRATED TCP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.169 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+7407.502,130.32
+
+TCP round robin domU to dom0, run #1
+MIGRATED TCP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.1 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+6553.410,148.46
+
+
+
+running round 2
+
+UDP round robin domU to domU, run #2
+MIGRATED UDP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.169 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+7950.527,121.21
+
+UDP round robin domU to dom0, run #2
+MIGRATED UDP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.1 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+6759.464,143.75
+
+TCP round robin domU to domU, run #2
+MIGRATED TCP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.169 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+8342.644,115.60
+
+TCP round robin domU to dom0, run #2
+MIGRATED TCP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.1 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+7351.899,132.11
+
+
+
+running round 3
+
+UDP round robin domU to domU, run #3
+MIGRATED UDP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.169 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+7784.927,123.86
+
+UDP round robin domU to dom0, run #3
+MIGRATED UDP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.1 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+7377.502,131.60
+
+TCP round robin domU to domU, run #3
+MIGRATED TCP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.169 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+7494.407,128.81
+
+TCP round robin domU to dom0, run #3
+MIGRATED TCP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.1 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+7088.820,137.10
+
+
+
+running round 4
+
+UDP round robin domU to domU, run #4
+MIGRATED UDP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.169 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+7987.684,120.73
+
+UDP round robin domU to dom0, run #4
+MIGRATED UDP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.1 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+6596.114,147.36
+
+TCP round robin domU to domU, run #4
+MIGRATED TCP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.169 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+6997.096,138.12
+
+TCP round robin domU to dom0, run #4
+MIGRATED TCP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.1 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+7235.566,134.24
+
+
+
+running round 5
+
+UDP round robin domU to domU, run #5
+MIGRATED UDP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.169 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+7454.394,129.40
+
+UDP round robin domU to dom0, run #5
+MIGRATED UDP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.1 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+6963.478,139.48
+
+TCP round robin domU to domU, run #5
+MIGRATED TCP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.169 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+7894.293,122.29
+
+TCP round robin domU to dom0, run #5
+MIGRATED TCP REQUEST/RESPONSE TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 10.10.10.1 () port 0 AF_INET : demo : first burst 0
+Transaction Rate Tran/s,Mean Latency Microseconds
+6782.372,143.36
+
+
+
+done
