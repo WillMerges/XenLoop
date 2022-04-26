@@ -56,7 +56,7 @@ Additionally, in order to use the xenloop.ko module some XenStore permissions ne
 dom0. After starting up the guests use the 'xl list' command to get the domids of the started guests,
 then execute the following command for each domid:
 
-xl xenstore-chmod /local/domain/[DOMID]
+xl xenstore-chmod /local/domain/[DOMID] b
 
 This will allow each guest domU to advertise that they have the XenLoop module loaded in the XenStore.
 
