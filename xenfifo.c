@@ -148,6 +148,9 @@ err:
 int xf_destroy(xf_handle_t *xfl)
 {
 	int i;
+	unsigned int num_pages;
+	int grefs[MAX_FIFO_PAGES];
+	int dgref;
 
 	TRACE_ENTRY;
 
@@ -156,16 +159,22 @@ int xf_destroy(xf_handle_t *xfl)
 		goto err;
 	}
 
+	num_pages = xfl->descriptor->num_pages;
 
-	for(i=0; i < xfl->descriptor->num_pages; i++) {
-		gnttab_end_foreign_access_ref(xfl->descriptor->grefs[i], 0);
+	// copy grefs so we can free the descriptor but still have the grefs
+	for(i=0; i < num_pages; i++) {
+		grefs[i] = xfl->descriptor->grefs[i];
 	}
-	gnttab_end_foreign_access_ref(xfl->descriptor->dgref, 0);
+	dgref = xfl->descriptor->dgref;
 
-	// free the pages
 	kfree(xfl->fifo);
 	kfree(xfl->descriptor);
 	kfree(xfl);
+
+	for(i=0; i < num_pages; i++) {
+		gnttab_end_foreign_access_ref(grefs[i], 0);
+	}
+	gnttab_end_foreign_access_ref(dgref, 0);
 
 	TRACE_EXIT;
 	return 0;
@@ -179,6 +188,7 @@ err:
 /*
  * Connect to a FIFO listener on another domain
  */
+
 xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 {
 	xf_handle_t *xfc = NULL;
@@ -216,7 +226,6 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 	xfc->dhandle = map_op.handle;
 
 	// allocate our own pages for the FIFO based on the number of pages listed in the descriptor
-	// this number comes from the listener end since we mapped their descriptor to our memory
 	xfc->fifo = (void*) kmalloc(xfc->descriptor->num_pages * PAGE_SIZE, GFP_ATOMIC);
 
 	if(!xfc->fifo) {
@@ -283,7 +292,6 @@ int xf_disconnect(xf_handle_t *xfc)
 {
 	struct gnttab_unmap_grant_ref unmap_op;
 	int i, ret;
-
 	TRACE_ENTRY;
 
 	if(!xfc || !xfc->descriptor || !xfc->fifo) {
@@ -291,12 +299,7 @@ int xf_disconnect(xf_handle_t *xfc)
 		goto err;
 	}
 
-	// according to KEDR (leak check tool) these pages below are not being freed
-	// but maybe it's a weird xen thing
-
-	// BUG here, sometimes there was a page fault when xfc->descriptor is freed
-	// if that line is removed, the module can be removed but page faults later in clean_suspended_entries, not sure why
-	kfree(xfc->fifo);
+	DPRINTK("descriptor: %p\n", xfc->descriptor);
 
 	for(i=0; i < xfc->descriptor->num_pages; i++) {
 		gnttab_set_unmap_op(&unmap_op, (unsigned long)(xfc->fifo + i*PAGE_SIZE),
@@ -306,16 +309,16 @@ int xf_disconnect(xf_handle_t *xfc)
 			EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
 	}
 
-	kfree((void*)(xfc->descriptor));
-
 	gnttab_set_unmap_op(&unmap_op, (unsigned long)xfc->descriptor,
 			GNTMAP_host_map, xfc->dhandle);
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
 	if( ret )
 		EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
 
-
+	// according to KEDR (leak check tool) these pages are not being freed
+	kfree((void*)(xfc->descriptor)); // BUG here, this seems to page fault, or page fault later in check_suspended_entries
 	kfree((void*)xfc);
+	kfree(xfc->fifo);
 
 	TRACE_EXIT;
 	return 0;
