@@ -156,6 +156,7 @@ int xf_destroy(xf_handle_t *xfl)
 		goto err;
 	}
 
+
 	for(i=0; i < xfl->descriptor->num_pages; i++) {
 		gnttab_end_foreign_access_ref(xfl->descriptor->grefs[i], 0);
 	}
@@ -282,12 +283,20 @@ int xf_disconnect(xf_handle_t *xfc)
 {
 	struct gnttab_unmap_grant_ref unmap_op;
 	int i, ret;
+
 	TRACE_ENTRY;
 
 	if(!xfc || !xfc->descriptor || !xfc->fifo) {
 		EPRINTK("Something is NULL\n");
 		goto err;
 	}
+
+	// according to KEDR (leak check tool) these pages below are not being freed
+	// but maybe it's a weird xen thing
+
+	// BUG here, sometimes there was a page fault when xfc->descriptor is freed
+	// if that line is removed, the module can be removed but page faults later in clean_suspended_entries, not sure why
+	kfree(xfc->fifo);
 
 	for(i=0; i < xfc->descriptor->num_pages; i++) {
 		gnttab_set_unmap_op(&unmap_op, (unsigned long)(xfc->fifo + i*PAGE_SIZE),
@@ -297,19 +306,15 @@ int xf_disconnect(xf_handle_t *xfc)
 			EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
 	}
 
+	kfree((void*)(xfc->descriptor));
+
 	gnttab_set_unmap_op(&unmap_op, (unsigned long)xfc->descriptor,
 			GNTMAP_host_map, xfc->dhandle);
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &unmap_op, 1);
 	if( ret )
 		EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
 
-	// according to KEDR (leak check tool) these pages below are not being freed
-	// but maybe it's a weird xen thing
 
-	// BUG here, sometimes there was a page fault when xfc->descriptor is freed
-	// if that line is removed, the module can be removed but page faults later in clean_suspended_entries, not sure why
-	kfree(xfc->fifo);
-	kfree((void*)(xfc->descriptor));
 	kfree((void*)xfc);
 
 	TRACE_EXIT;
