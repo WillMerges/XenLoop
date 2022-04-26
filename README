@@ -52,6 +52,9 @@ The above modules were tested with an Ubuntu 18.04 (kernel version 5.4.0-42) dom
 with Ubuntu 18.04 (kernel version 5.4.0-42).
 
 
+Please email Will Merges (wdm7973@rit.edu) with questions about the port or modifications.
+
+
 The original README that was packaged with XenLoop is pasted below for reference.
 
 
