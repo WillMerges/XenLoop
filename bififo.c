@@ -42,7 +42,6 @@
 #include <linux/netdevice.h>
 
 #include <asm/xen/hypercall.h>
-//#include <xen/driver_util.h>
 #include <xen/grant_table.h>
 #include <xen/events.h>
 
@@ -182,9 +181,6 @@ void recv_packets(bf_handle_t *bfh)
 
 		// DPRINTK("packet received through xenloop\n");
 		netif_rx(skb);
-
-		// this isn't needed anymore, i think
-		// NIC->last_rx = jiffies;
 
 		spin_lock_irqsave(&recv_lock, flags);
 	}

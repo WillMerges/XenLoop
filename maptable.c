@@ -97,8 +97,6 @@ inline void remove_entry(HashTable *ht, Entry *e, struct list_head *x) {
 	}
 	e->status  = XENLOOP_STATUS_INIT;
 
-	// if (e->ack_timer)
-		// del_timer_sync(e->ack_timer);
 	if(e->del_timer) {
 		del_timer(&e->ack_timer);
 	}
@@ -321,5 +319,4 @@ void clean_table(HashTable * ht)
 	}
 
     kmem_cache_destroy(ht->entries);
-	//BUG_ON(kmem_cache_destroy(ht->entries));
 }

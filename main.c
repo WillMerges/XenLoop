@@ -39,7 +39,6 @@
 #include <linux/genhd.h>
 
 #include <asm/xen/hypercall.h>
-// #include <asm/xen/driver_util.h>
 #include <xen/grant_table.h>
 #include <xen/events.h>
 #include <xen/xenbus.h>
@@ -89,9 +88,6 @@ static u8 num_of_macs = 0;
 static u8 freezed = 0;
 struct net_device *NIC = NULL;
 static int if_drops = 0;
-// static int if_over = 0;
-// static int if_fifo = 0;
-// static int if_total = 0;
 static skb_queue_t out_queue;
 static skb_queue_t pending_free;
 
@@ -106,7 +102,6 @@ HashTable mac_domid_map;
 
 static char* nic = NULL;
 module_param(nic,charp,0660);
-// MODULE_PARAM_DESC(nic, "NIC device used to communicate with dom0");
 
 static int  write_xenstore(int status)
 {
@@ -276,8 +271,6 @@ int session_recv(struct sk_buff * skb, net_device * dev, packet_type * pt, net_d
 			if(!e)	goto out;
 
 			e->status = XENLOOP_STATUS_CONNECTED;
-			// if (e->ack_timer)
-			// 	del_timer_sync(e->ack_timer);
 			if(e->del_timer) {
 				del_timer(&e->ack_timer);
 			}
@@ -314,7 +307,6 @@ inline void net_send(struct sk_buff * skb, u8 * dest)
 	skb->data_len = 0;
 	skb_shinfo(skb)->nr_frags 	= 0;
 	skb_shinfo(skb)->frag_list 	= NULL;
-	// skb->tail = skb->data + headers;
 	skb->tail = headers;
 
 	skb->dev 	= NIC;
@@ -487,15 +479,9 @@ static int xenloop_listen(Entry *e)
 				BF_EVT_PORT(bfl),
 				e->mac);
 
-
-	// e->ack_timer = kmalloc(sizeof(struct timer_list), GFP_ATOMIC);
-	// BUG_ON(!e->ack_timer);
-	// init_timer(e->ack_timer);
 	timer_setup(&e->ack_timer, ack_timeout, 0);
 	e->del_timer = 1;
-	// e->ack_timer->function	= ack_timeout;
 	e->ack_timer.expires	= jiffies + XENLOOP_ACK_TIMEOUT*HZ;
-	// e->ack_timer->data	= (unsigned long)e;
 	add_timer(&e->ack_timer);
 
 	TRACE_EXIT;
@@ -661,7 +647,6 @@ inline int xmit_packets(struct sk_buff *skb)
 		}
 	}
 
-	// DPRINTK("count of out queue: %u\n", out_queue.count);
 	while (out_queue.count > 0) {
 		int rc;
 		Entry *e;
@@ -674,8 +659,6 @@ inline int xmit_packets(struct sk_buff *skb)
 		BUG_ON(!e);
 
 		rc = xmit_large_pkt(skb, e->bfh->out);
-
-		// DPRINTK("rc: %d\n", rc);
 
 		if (rc < 0) {
 			// EPRINTK("xmit_large_pkt failed: %d\n", rc);
@@ -713,21 +696,7 @@ static unsigned int iphook_out(
 	Entry * e;
 	int ret = NF_ACCEPT;
 
-    // struct dst_entry *dst = skb->dst;
-    // struct neighbour *neigh = dst->neighbour;
-	// TODO do we need to do this?
-	// can't we just look at eth_hdr of the skb
 	struct neighbour *neigh = dst_neigh_lookup_skb(skb_dst(skb), skb);
-
-	// TODO just tried this, it didn't work
-	// LOL
-	// POST_ROUTING means the kernel has destined this packet for elsewhere, we can't hook after a full packet assembly (I think)
-	// u8* dst_mac = eth_hdr(skb)->h_dest;
-
-	// TODO this seems to be just debugging info, remove
-	// if_total++;
-	// if (skb->len > 32768*8)  if_over++;
-
 
     if (!neigh) {
 		return NF_ACCEPT;
@@ -739,15 +708,12 @@ static unsigned int iphook_out(
 	}
 
 	if (!(e = lookup_table(&mac_domid_map, neigh->ha))) {
-	// if(!(e = lookup_table(&mac_domid_map, dst_mac))) {
 		return NF_ACCEPT;
 	}
 
 	TRACE_ENTRY;
 
 	if (check_descriptor(e->bfh) && (BF_SUSPEND_IN(e->bfh) || BF_SUSPEND_OUT(e->bfh))) {
-		// DPRINTK("bad descriptor\n");
-
 		e->status = XENLOOP_STATUS_SUSPEND;
 		wake_up_interruptible(&swq);
 		return NF_ACCEPT;
@@ -755,7 +721,6 @@ static unsigned int iphook_out(
 
 	switch (e->status) {
 		case  XENLOOP_STATUS_INIT:
-			// DPRINTK("init status\n");
 			if( my_domid < e->domid)  {
 				xenloop_listen(e);
 			}
@@ -764,21 +729,17 @@ static unsigned int iphook_out(
 			return NF_ACCEPT;
 
 		case XENLOOP_STATUS_CONNECTED:
-			// DPRINTK("connected, transmitting packets through xenloop\n");
-			// DPRINTK("packet transmitted through Xenloop\n");
 			if( xmit_packets(skb) < 0  ) {
-				// EPRINTK("Couldn't send packet via bififo. Using network instead\n");
+				EPRINTK("Couldn't send packet via bififo. Using network instead\n");
 				ret = NF_ACCEPT;
 				goto out;
 			}
-			// if_fifo++;
             // DPRINTK("packet sent using XenLoop\n");
 			ret = NF_STOLEN;
 			break;
 
 		case XENLOOP_STATUS_LISTEN:
 		default:
-			// DPRINTK("listen\n");
 			TRACE_EXIT;
 			return ret;
 	}
@@ -813,7 +774,6 @@ static unsigned int iphook_in(
 
 struct nf_hook_ops iphook_in_ops = {
 	.hook = iphook_in,
-	// .owner = THIS_MODULE,
 	.pf = PF_INET,
 	.hooknum = NF_INET_PRE_ROUTING,
 	.priority = 10,
@@ -821,7 +781,6 @@ struct nf_hook_ops iphook_in_ops = {
 
 struct nf_hook_ops iphook_out_ops = {
 	.hook = iphook_out,
-	// .owner = THIS_MODULE,
 	.pf = PF_INET,
 	.hooknum = NF_INET_POST_ROUTING,
 	.priority = 10,
@@ -910,7 +869,6 @@ static int xmit_pending(void *useless)
 	while(!kthread_should_stop()) {
 		timeout = out_queue.count ? SHORT_PENDING_TIMEOUT : LONG_PENDING_TIMEOUT*HZ;
 		wait_event_interruptible_timeout(pending_wq, (out_queue.count > 0), timeout);
-		//if (out_queue.count > 0)
 		xmit_packets(NULL);
 	}
 	TRACE_EXIT;
@@ -1007,7 +965,6 @@ static void xenloop_exit(void)
 	if(pending_thread)
 		kthread_stop(pending_thread);
 
-	// only need to mark suspend on IP map, things in MAC map can't be connected
 	mark_suspend(&mac_domid_map);
 
 	if(suspend_thread)
@@ -1084,13 +1041,6 @@ static int __init xenloop_init(void)
 		rc = -1;
 		goto out;
 	}
-
-	// ip_map_thread = kthread_run(ip_check_map, NULL, "IP map");
-	// if(!ip_map_thread) {
-	// 	xenloop_exit();
-	// 	rc = -1;
-	// 	goto out;
-	// }
 
 	DPRINTK("XENLOOP successfully initialized!\n");
 
