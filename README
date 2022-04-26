@@ -52,8 +52,17 @@ The above modules were tested with an Ubuntu 18.04 (kernel version 5.4.0-42) dom
 with Ubuntu 18.04 (kernel version 5.4.0-42).
 
 
-Please email Will Merges (wdm7973@rit.edu) with questions about the port or modifications.
+Additionally, in order to use the xenloop.ko module some XenStore permissions need to be set on the
+dom0. After starting up the guests use the 'xl list' command to get the domids of the started guests,
+then execute the following command for each domid:
 
+xl xenstore-chmod /local/domain/[DOMID]
+
+This will allow each guest domU to advertise that they have the XenLoop module loaded in the XenStore.
+
+
+
+Please email Will Merges (wdm7973@rit.edu) with questions about the port or modifications.
 
 The original README that was packaged with XenLoop is pasted below for reference.
 
