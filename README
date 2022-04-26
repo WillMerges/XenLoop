@@ -1,3 +1,60 @@
+This project updates XenLoop, built for Project Xen on Linux, to a modern
+kernel version and makes minor performance enhancements. The most recent
+kernel version it was tested with is 5.4.0-42.
+
+The original paper can be found here   -> https://kartikgopalan.github.io/publications/wang08xenloop.pdf
+The original source can be found here  -> http://osnet.cs.binghamton.edu/projects/xenloop.html
+
+The 'baseline_port' branch contains the port to Linux kernel 5.4.0-42 without changing the design.
+The 'main' and 'ip_lookup' branches contain the changes for performance improvements made.
+
+The performance improvements made were to use IP address lookups rather than MAC address
+lookups so outgoing packets can be hooked higher in the networking stack. Rather than hook
+at the Netfilter hook NF_INET_POST_ROUTING like original XenLoop, packets are hooked at the
+NF_INET_LOCAL_OUT hook, after some routing and neighbor lookup has been performed. The justification
+for hooking higher in the stack is that the datapath between domUs is shorter since a packet
+has to traverse less of the stack. Experimentally using IP lookup had ~1% better throughput and
+latency for almost no overhead. Determinging the IP address of co-resident guests was done with
+another Netfilter hook that hooks incoming ARP traffic. It utilizes the original XenLoop mechanism
+of storing co-resident domU's MAC addresses and when we get an ARP packet that resolves one of those
+MAC address to an IPv4 address we store the address in a separate hash table and use that for lookups
+on outgoing packets. This way we stay above the link layer and can hook higher in the stack, at the
+expense of only being able to send IPv4 traffic through the XenLoop FIFOs.
+
+Future improvements include:
+-fixing page fault bug that sometimes occurs when the xenloop.ko module is unloaded in a domU after
+ a connection has been suspended.
+-further performance improvements, packets received over the FIFO currently use the 'netif_rx' function,
+ but since we only route IP traffic we can use 'ip_local_deliver' or a similar function instead which
+ skips some of the lower parts of the stack. Currently this is impossible as 'ip_local_deliver' and
+ similar functions are not exported to be linked with kernel modules.
+-IPv6 support, NDP packets would have to be hooked instead of just ARP.
+
+
+The two kernel modules have an additional 'nic' parameter that the original source did not, so the modules
+must be loaded differently.
+
+The discovery.ko module uses the 'nic' parameter to specify the device name for the virtual interface that
+can send packets to the guest domUs. For example the module can be loaded on the dom0 as follows:
+
+insmod discovery.ko nic=virbr0
+
+The xenloop.ko module uses the 'nic' parameter to specify the device name for the virtual device that can
+communicate with the dom0 and other domUs through the standard netback/netfront interface. This device is
+needed to send messages to create and suspend connections before the FIFOs are constructed and mapped. For
+example the module can be loaded on the domU as follows:
+
+insmod xenloop.ko nic=eth0
+
+The original XenLoop source hardcoded these device names or searched for a device with name 'ethN'.
+
+The above modules were tested with an Ubuntu 18.04 (kernel version 5.4.0-42) dom0 and two domU guests
+with Ubuntu 18.04 (kernel version 5.4.0-42).
+
+
+The original README that was packaged with XenLoop is pasted below for reference.
+
+
 /*
  *  XenLoop -- A High Performance Inter-VM Network Loopback
  *
