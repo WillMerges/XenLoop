@@ -39,7 +39,6 @@
 #include <linux/genhd.h>
 
 #include <asm/xen/hypercall.h>
-// #include <asm/xen/driver_util.h>
 #include <xen/grant_table.h>
 #include <xen/events.h>
 #include <xen/xenbus.h>
@@ -89,9 +88,6 @@ static u8 num_of_macs = 0;
 static u8 freezed = 0;
 struct net_device *NIC = NULL;
 static int if_drops = 0;
-// static int if_over = 0;
-// static int if_fifo = 0;
-// static int if_total = 0;
 static skb_queue_t out_queue;
 static skb_queue_t pending_free;
 
@@ -102,6 +98,7 @@ DECLARE_WAIT_QUEUE_HEAD(swq);
 static struct task_struct *pending_thread = NULL;
 DECLARE_WAIT_QUEUE_HEAD(pending_wq);
 
+// additional map table functions for IP hash map
 extern void insert_table_ip(HashTable* ht, u32 ip, Entry* old_entry);
 extern void * lookup_table_ip(HashTable * ht, u32 ip);
 extern void remove_entry_mac(HashTable* ht, void* mac);
@@ -112,7 +109,6 @@ HashTable ip_domid_map;
 
 static char* nic = NULL;
 module_param(nic,charp,0660);
-// MODULE_PARAM_DESC(nic, "NIC device used to communicate with dom0");
 
 static int  write_xenstore(int status)
 {
@@ -167,7 +163,7 @@ static int probe_vifs(void)
 {
         int err = 0;
         char **dir;
-	char * path, *macstr;
+		char * path, *macstr;
         unsigned int i, dir_n;
 
         dir = xenbus_directory(XBT_NIL, "device/vif", "", &dir_n);
@@ -282,8 +278,6 @@ int session_recv(struct sk_buff * skb, net_device * dev, packet_type * pt, net_d
 			if(!e)	goto out;
 
 			e->status = XENLOOP_STATUS_CONNECTED;
-			// if (e->ack_timer)
-			// 	del_timer_sync(e->ack_timer);
 			if(e->del_timer) {
 				del_timer(&e->ack_timer);
 			}
@@ -320,7 +314,6 @@ inline void net_send(struct sk_buff * skb, u8 * dest)
 	skb->data_len = 0;
 	skb_shinfo(skb)->nr_frags 	= 0;
 	skb_shinfo(skb)->frag_list 	= NULL;
-	// skb->tail = skb->data + headers;
 	skb->tail = headers;
 
 	skb->dev 	= NIC;
@@ -470,7 +463,7 @@ static int xenloop_listen(Entry *e)
 	if(!bfl) {
 		e->status = XENLOOP_STATUS_INIT;
 
-		EPRINTK("bf_creat failed\n");
+		EPRINTK("bf_create failed\n");
 		TRACE_ERROR;
 		return -1;
 	}
@@ -494,14 +487,9 @@ static int xenloop_listen(Entry *e)
 				e->mac);
 
 
-	// e->ack_timer = kmalloc(sizeof(struct timer_list), GFP_ATOMIC);
-	// BUG_ON(!e->ack_timer);
-	// init_timer(e->ack_timer);
 	timer_setup(&e->ack_timer, ack_timeout, 0);
 	e->del_timer = 1;
-	// e->ack_timer->function	= ack_timeout;
 	e->ack_timer.expires	= jiffies + XENLOOP_ACK_TIMEOUT*HZ;
-	// e->ack_timer->data	= (unsigned long)e;
 	add_timer(&e->ack_timer);
 
 	TRACE_EXIT;
@@ -667,7 +655,6 @@ inline int xmit_packets(struct sk_buff *skb)
 		}
 	}
 
-	// DPRINTK("count of out queue: %u\n", out_queue.count);
 	while (out_queue.count > 0) {
 		int rc;
 		Entry *e;
@@ -676,13 +663,11 @@ inline int xmit_packets(struct sk_buff *skb)
 		BUG_ON(!skb);
 
 		// TODO store skb and entry together? so we don't have to do this lookup
-		// e = lookup_table(&mac_domid_map, dst_neigh_lookup_skb(skb_dst(skb), skb)->ha);
+		// this lookup is fairly negligle though
 		e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr);
 		BUG_ON(!e);
 
 		rc = xmit_large_pkt(skb, e->bfh->out);
-
-		// DPRINTK("rc: %d\n", rc);
 
 		if (rc < 0) {
 			// EPRINTK("xmit_large_pkt failed: %d\n", rc);
@@ -690,6 +675,10 @@ inline int xmit_packets(struct sk_buff *skb)
 			// we're disabling interrupts and then calling a hypercall in bf_notify, we'll probably lose the return and get stuck :(
 			// why do we even need a notify here in the first place? the xmit_pending thread will just call this function again
 			// we haven't transmitted any data, so why tell the other guest we did? seems silly, but maybe I'm wrong
+
+			// NOTE: the original XenLoop calls bf_notify here
+			// to me, this seems dangerous since it uses a hypercall to send a signal on the event channel, but we've disabled interrupts
+			// I'm not sure this is 100% dangerous, but it seems like it could lock up the CPU since we'll never get a response to the hypercall with interrupts masked
 			// bf_notify(e->bfh->port);
 			wake_up_interruptible(&pending_wq);
 			break;
@@ -702,10 +691,9 @@ inline int xmit_packets(struct sk_buff *skb)
 
 	spin_unlock_irqrestore( &xmit_lock, flags );
 
-	// TODO why is this here? did we not already call bf_notify after copying the skb in?
-	// let's comment it out and see if it does anything - NOTE: it broke :( see above
-	// I'm assuming we have to wait to send the notify?
-	// notify_all_bfs(&mac_domid_map);
+	// TODO why don't we onlt call notify on the bififos we updated? we'd have to track that
+	// we can't call notify while IRQs are masked for the same reason as above, it could lock the CPU
+	// calling bf_notify in the above loop seemed to confirm this theory as the CPU locked up
 	notify_all_bfs(&ip_domid_map);
 
 	TRACE_EXIT;
@@ -713,42 +701,13 @@ inline int xmit_packets(struct sk_buff *skb)
 }
 
 
-
+// hook outgoing packets
 static unsigned int iphook_out(
 	void* priv,
 	struct sk_buff *skb,
 	const struct nf_hook_state* state) {
 	Entry * e;
 	int ret = NF_ACCEPT;
-        // struct dst_entry *dst = skb->dst;
-        // struct neighbour *neigh = dst->neighbour;
-	// TODO do we need to do this?
-	// can't we just look at eth_hdr of the skb
-	// struct neighbour *neigh = dst_neigh_lookup_skb(skb_dst(skb), skb);
-
-	// TODO just tried this, it didn't work
-	// LOL
-	// POST_ROUTING means the kernel has destined this packet for elsewhere, we can't hook after a full packet assembly (I think)
-	// u8* dst_mac = eth_hdr(skb)->h_dest;
-
-	// TODO this seems to be just debugging info, remove
-	// if_total++;
-	// if (skb->len > 32768*8)  if_over++;
-
-
-    // if (!neigh) {
-	// 	return NF_ACCEPT;
-	// }
-
-
-	// if (!(neigh->nud_state & (NUD_CONNECTED|NUD_DELAY|NUD_PROBE) )) {
-	// 	return NF_ACCEPT;
-	// }
-
-	// if (!(e = lookup_table(&mac_domid_map, neigh->ha))) {
-	// if(!(e = lookup_table(&mac_domid_map, dst_mac))) {
-	// 	return NF_ACCEPT;
-	// }
 
 	// DPRINTK("Hooked out IP: %\n", htonl(ip_hdr(skb)->daddr));
 	if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
@@ -774,14 +733,12 @@ static unsigned int iphook_out(
 			return NF_ACCEPT;
 
 		case XENLOOP_STATUS_CONNECTED:
-			// DPRINTK("packet transmitted through Xenloop\n");
 			if( xmit_packets(skb) < 0  ) {
 				EPRINTK("Couldn't send packet via bififo. Using network instead\n");
 				ret = NF_ACCEPT;
 				goto out;
 			}
-			// if_fifo++;
-            // DPRINTK("packet sent using XenLoop\n");
+			// DPRINTK("packet transmitted through Xenloop\n");
 			ret = NF_STOLEN;
 			break;
 
@@ -805,12 +762,7 @@ static unsigned int iphook_in(
 
 	Entry * e;
 	int ret = NF_ACCEPT;
-	// u8 *src_mac = eth_hdr(skb)->h_source;
 
-	// if (!(e = lookup_table(&mac_domid_map, src_mac))) {
-	// 	return ret;
-	// }
-	// DPRINTK("Hooked in IP: %u\n", ip_hdr(skb)->daddr);
 	if(!(e = lookup_table_ip(&ip_domid_map, ip_hdr(skb)->daddr))) {
 		return ret;
 	}
@@ -823,7 +775,7 @@ static unsigned int iphook_in(
         return NF_ACCEPT;
 }
 
-// catch incoming ARP packets
+// hook incoming ARP packets
 // if it's resolving a MAC address the dom0 has told us about, add it's IP to the table we check
 static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 	 						   const struct nf_hook_state* state) {
@@ -839,24 +791,21 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 		return ret;
 	}
 
-	// DPRINTK("ARP header in\n");
 	mac = (u8*)(&(hdr->ar_op)) + 2;
-	// DPRINTK("Target MAC: " MAC_FMT "\n", MAC_NTOA(mac));
 
 	if(!(e = lookup_table(&mac_domid_map, (void*)(&(hdr->ar_op)) + 2))) {
-		// DPRINTK("ARP source Not in MAC table\n");
 		return ret;
 	}
 
 	memcpy((void*)&ip, (void*)(&(hdr->ar_op)) + 2 + ETH_ALEN, 4);
-	// ip = htonl(ip);
 
 	if(NULL == lookup_table_ip(&ip_domid_map, ip)) {
 		insert_table_ip(&ip_domid_map, ip, e);
 		DPRINTK("Added IP: %u to table\n", ip);
 	}
-	// leave MAC entry in
-	// remove_entry_mac(&mac_domid_map, mac);
+
+	// NOTE: we now the same entry in our MAC and IP table,
+	// the IP table stores a pointer to the Entry allocated by the mac table
 
 	return ret;
 }
@@ -865,7 +814,6 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 
 struct nf_hook_ops iphook_in_ops = {
 	.hook = iphook_in,
-	// .owner = THIS_MODULE,
 	.pf = PF_INET,
 	.hooknum = NF_INET_PRE_ROUTING,
 	.priority = 10,
@@ -873,10 +821,8 @@ struct nf_hook_ops iphook_in_ops = {
 
 struct nf_hook_ops iphook_out_ops = {
 	.hook = iphook_out,
-	// .owner = THIS_MODULE,
 	.pf = PF_INET,
-	// .hooknum = NF_INET_POST_ROUTING, // TODO use NF_IP_LOCAL_OUT instead
-	.hooknum = NF_INET_LOCAL_OUT,
+	.hooknum = NF_INET_LOCAL_OUT, // NOTE: this used to be NF_INET_POST_ROUTING, but since we do IP lookup instead of MAC lookup we can hook further up in the stack
 	.priority = 10,
 };
 
@@ -976,7 +922,6 @@ static int xmit_pending(void *useless)
 	while(!kthread_should_stop()) {
 		timeout = out_queue.count ? SHORT_PENDING_TIMEOUT : LONG_PENDING_TIMEOUT*HZ;
 		wait_event_interruptible_timeout(pending_wq, (out_queue.count > 0), timeout);
-		//if (out_queue.count > 0)
 		xmit_packets(NULL);
 	}
 	TRACE_EXIT;
@@ -1073,7 +1018,8 @@ static void xenloop_exit(void)
 	if(pending_thread)
 		kthread_stop(pending_thread);
 
-	// mark_suspend(&mac_domid_map);
+	// mark everything as suspended
+	mark_suspend(&mac_domid_map);
 
 	if(suspend_thread)
 		kthread_stop(suspend_thread);
@@ -1082,6 +1028,7 @@ static void xenloop_exit(void)
 
 	net_exit();
 
+	// NOTE: we don't clean the IP table since all of it's memory references Entries in the mac table
 	clean_table(&mac_domid_map);
 
 	DPRINTK("Exiting xenloop module.\n");
@@ -1115,6 +1062,8 @@ static int __init xenloop_init(void)
 		goto out;
 	}
 
+	// NOTE: this should never fail, since we allocate no memory
+	// leave the error check here in case we have a failure case in the future
 	if(init_hash_table_ip(&ip_domid_map) != 0) {
 		rc = -ENOMEM;
 		goto out;
@@ -1126,7 +1075,7 @@ static int __init xenloop_init(void)
 	if ((rc = net_init()) < 0) {
 		EPRINTK("session_init(): net_init failed\n");
 		clean_table(&mac_domid_map);
-		// clean_table(&ip_domid_map);
+		// NOTE: we don't clean the IP table since all of it's memory references Entries in the mac table
 		goto out;
 	}
 
@@ -1134,7 +1083,7 @@ static int __init xenloop_init(void)
 		EPRINTK("Failed to write to xenstore, permissions error?\n");
 		net_exit();
 		clean_table(&mac_domid_map);
-		// clean_table(&ip_domid_map);
+		// NOTE: we don't clean the IP table since all of it's memory references Entries in the mac table
 		goto out;
 	}
 

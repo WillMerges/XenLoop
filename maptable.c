@@ -55,14 +55,19 @@ int  equal(void *pmac1, void *pmac2)
 };
 
 
+// hash an IPv4 address
 ulong hash_ip(u32 ip) {
 	return ip % XENLOOP_HASH_SIZE;
 }
 
+// check if two IPv4 address are equal
+// returns 1 if equal, 0 otherwise
 int equal_ip(u32 ip1, u32 ip2) {
 	return ip1 == ip2;
 }
 
+// insert into a table
+// key is a MAC address, value is a domid
 inline void insert_table(HashTable * ht, void * key, u8 domid)
 {
 	Bucket * b = &ht->table[hash(key)];
@@ -74,7 +79,6 @@ inline void insert_table(HashTable * ht, void * key, u8 domid)
 	memcpy(e->mac, key, ETH_ALEN);
 	e->domid = domid;
 	e->timestamp = jiffies;
-	// e->ack_timer = NULL;
 	e->del_timer = 0;
 	e->status = XENLOOP_STATUS_INIT;
 	e->listen_flag = 0xff;
@@ -88,6 +92,9 @@ inline void insert_table(HashTable * ht, void * key, u8 domid)
 	spin_unlock_irqrestore(&glock, flags);
 }
 
+// insert an Entry at an IPv4 key in a table
+// used for IP (not MAC) table
+// NOTE: pointer to reference is stored, not copied!
 inline void insert_table_ip(HashTable* ht, u32 ip, Entry* e) {
 	Bucket * b = &ht->table[hash_ip(ip)];
 	// Entry * e;
@@ -106,6 +113,8 @@ inline void insert_table_ip(HashTable* ht, u32 ip, Entry* e) {
 	spin_unlock_irqrestore(&glock, flags);
 }
 
+// remove an entry from the table
+// NOTE: deallocates memory for Entries, make sure it isn't references anywhere else
 inline void remove_entry(HashTable *ht, Entry *e, struct list_head *x) {
 	ulong flags;
 
@@ -126,8 +135,6 @@ inline void remove_entry(HashTable *ht, Entry *e, struct list_head *x) {
 		e->bfh = NULL;
 	}
 
-	// if (e->ack_timer)
-		// del_timer_sync(e->ack_timer);
 	if(e->del_timer) {
 		del_timer(&e->ack_timer);
 	}
@@ -138,6 +145,7 @@ inline void remove_entry(HashTable *ht, Entry *e, struct list_head *x) {
 	TRACE_EXIT;
 }
 
+// remove the entry keyed at MAC address 'mac'
 inline void remove_entry_mac(HashTable* ht, void* mac) {
 	Bucket * b = &ht->table[hash(mac)];
 
@@ -154,6 +162,7 @@ inline void remove_entry_mac(HashTable* ht, void* mac) {
 	}
 }
 
+// remove the reference to an entry at an IP
 inline void remove_entry_ip(HashTable* ht, u32 ip) {
 	ulong flags;
 	Bucket * b = &ht->table[hash_ip(ip)];
@@ -164,7 +173,6 @@ inline void remove_entry_ip(HashTable* ht, u32 ip) {
 		list_for_each(x, &(b->bucket)) {
 			e = list_entry(x, Entry, ip_mapping);
 			if(ip == e->ip) {
-				// remove_entry(ht, e, x);
 				e->ip = 0;
 				spin_lock_irqsave(&glock, flags);
 				list_del(x);
@@ -176,6 +184,7 @@ inline void remove_entry_ip(HashTable* ht, u32 ip) {
 	}
 }
 
+// lookup the Entry according to bififo handle pointer 'key'
 inline Entry* lookup_bfh(HashTable * ht, void * key)
 {
 	int i;
@@ -193,7 +202,7 @@ inline Entry* lookup_bfh(HashTable * ht, void * key)
 	return NULL;
 }
 
-
+// lookup a MAC address key in the table
 inline void * lookup_table(HashTable * ht, void * key)
 {
 	Entry * d = NULL;
@@ -213,6 +222,7 @@ inline void * lookup_table(HashTable * ht, void * key)
 	return d;
 }
 
+// lookup an IP address key in the table
 inline void * lookup_table_ip(HashTable * ht, u32 ip) {
 	Entry * d = NULL;
 	Bucket * b = &ht->table[hash_ip(ip)];
@@ -231,6 +241,7 @@ inline void * lookup_table_ip(HashTable * ht, u32 ip) {
 	return d;
 }
 
+// return 1 if there is a suspended entry in the table, 0 otherwise
 inline int has_suspend_entry(HashTable * ht)
 {
 	int i;
@@ -248,6 +259,7 @@ inline int has_suspend_entry(HashTable * ht)
 	return 0;
 }
 
+// mark all entries in the table as suspended
 inline void mark_suspend(HashTable * ht)
 {
 	int i;
@@ -269,7 +281,7 @@ inline void mark_suspend(HashTable * ht)
 	TRACE_EXIT;
 }
 
-
+// notify all bififos in the table, sends an event to the other side of the bififos
 void notify_all_bfs(HashTable * ht)
 {
 	int i;
@@ -290,7 +302,8 @@ void notify_all_bfs(HashTable * ht)
 	TRACE_EXIT;
 }
 
-
+// check if any entries have timed out (timestamps are too old)
+// mark them as suspended if they are
 inline void check_timeout(HashTable * ht)
 {
 	int i, found = 0;
@@ -317,7 +330,7 @@ inline void check_timeout(HashTable * ht)
 		wake_up_interruptible(&swq);
 }
 
-
+// update the timestamps in keys corresponding to the array of MAC address 'mac'
 inline void update_table(HashTable * ht, u8 *mac, int mac_count)
 {
 	int i,j,found = 0;
@@ -354,7 +367,8 @@ inline void update_table(HashTable * ht, u8 *mac, int mac_count)
 	}
 }
 
-
+// initialize a MAC hash table
+// NOTE: allocates kmeme cache for Entries
 int init_hash_table(HashTable * ht, char * name)
 {
 	int i;
@@ -374,6 +388,8 @@ int init_hash_table(HashTable * ht, char * name)
 	return 0;
 }
 
+// initialize an IP hash table
+// NOTE: does not allocate any memory, all Entries stored as references
 int init_hash_table_ip(HashTable* ht) {
 	int i;
 
@@ -387,7 +403,7 @@ int init_hash_table_ip(HashTable* ht) {
 	return 0;
 }
 
-
+// remove all entries marked suspended
 void clean_suspended_entries(HashTable * ht, HashTable* ip_ht)
 {
 	int i;
@@ -411,7 +427,7 @@ void clean_suspended_entries(HashTable * ht, HashTable* ip_ht)
 	}
 }
 
-
+// remove all entries in the table
 void clean_table(HashTable * ht)
 {
 	int i;

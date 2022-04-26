@@ -39,10 +39,7 @@
 #include <linux/genhd.h>
 
 #include <asm/xen/hypercall.h>
-//#include <asm/xen/driver_util.h>
-//#include <xen/gnttab.h>
 #include <xen/grant_table.h>
-//#include <xen/evtchn.h>
 #include <xen/events.h>
 #include <xen/xenbus.h>
 
@@ -57,7 +54,6 @@
 
 static u8 guest_macs[MAX_MAC_NUM][ETH_ALEN];
 static int num_of_macs = 0;
-//static char *nic = "eth0\0  ";
 struct net_device *NIC = NULL;
 static domid_t guest_domids[MAX_MAC_NUM];
 
@@ -65,7 +61,6 @@ static struct task_struct *discover_thread;
 
 static char* nic = NULL;
 module_param(nic,charp,0660);
-// MODULE_PARAM_DESC(nic, "NIC device used to communicate with domU's, may be a virtual bridge");
 
 int store_domid_mac(char* domid, char* mac)
 {

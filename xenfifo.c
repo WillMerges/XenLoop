@@ -76,7 +76,6 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 	memset(xfl, 0, sizeof(xf_handle_t));
 
 
-	// xfl->descriptor = (xf_descriptor_t *) __get_free_page(GFP_ATOMIC);
 	xfl->descriptor = (xf_descriptor_t*) kmalloc(PAGE_SIZE, GFP_ATOMIC);
 	if(!xfl->descriptor) {
 		EPRINTK("Cannot allocate descriptor memory page for FIFO\n");
@@ -84,7 +83,6 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 	}
 	xfl->descriptor->num_pages = (1<<page_order);
 
-	// xfl->fifo = (void *) __get_free_pages(GFP_ATOMIC, page_order);
 	xfl->fifo = (void*) kmalloc(xfl->descriptor->num_pages * PAGE_SIZE, GFP_ATOMIC);
 	if(!xfl->fifo) {
 		EPRINTK("Cannot allocate buffer memory pages for FIFO\n");
@@ -126,9 +124,6 @@ xf_handle_t *xf_create(domid_t remote_domid, unsigned int entry_size, unsigned i
 
 err:
 	if( xfl) {
-		// if( xfl->descriptor) free_page((unsigned long)xfl->descriptor);
-		// if( xfl->fifo ) free_pages((unsigned long)xfl->fifo, page_order);
-
 		if(xfl->fifo) {
 			kfree(xfl->fifo);
 		}
@@ -153,9 +148,6 @@ err:
 int xf_destroy(xf_handle_t *xfl)
 {
 	int i;
-	unsigned int num_pages;
-	int grefs[MAX_FIFO_PAGES];
-	int dgref;
 
 	TRACE_ENTRY;
 
@@ -164,26 +156,15 @@ int xf_destroy(xf_handle_t *xfl)
 		goto err;
 	}
 
-	num_pages = xfl->descriptor->num_pages;
-
-	// copy grefs so we can free the descriptor but still have the grefs
-	for(i=0; i < num_pages; i++) {
-		grefs[i] = xfl->descriptor->grefs[i];
+	for(i=0; i < xfl->descriptor->num_pages; i++) {
+		gnttab_end_foreign_access_ref(xfl->descriptor->grefs[i], 0);
 	}
-	dgref = xfl->descriptor->dgref;
+	gnttab_end_foreign_access_ref(xfl->descriptor->dgref, 0);
 
-	// TODO add back
-	// kfree(xfl->fifo);
-	// kfree(xfl->descriptor);
-	// kfree(xfl);
-
-	// for(i=0; i < xfl->descriptor->num_pages; i++)
-		// gnttab_end_foreign_access_ref(xfl->descriptor->grefs[i], 0);
-	for(i=0; i < num_pages; i++) {
-		gnttab_end_foreign_access_ref(grefs[i], 0);
-	}
-	// gnttab_end_foreign_access_ref(xfl->descriptor->dgref, 0);
-	gnttab_end_foreign_access_ref(dgref, 0);
+	// free the pages
+	kfree(xfl->fifo);
+	kfree(xfl->descriptor);
+	kfree(xfl);
 
 	TRACE_EXIT;
 	return 0;
@@ -197,7 +178,6 @@ err:
 /*
  * Connect to a FIFO listener on another domain
  */
-
 xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 {
 	xf_handle_t *xfc = NULL;
@@ -215,7 +195,6 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 
 	// allocate a page of our own for the descriptor
 	xfc->descriptor = (xf_descriptor_t*) kmalloc(PAGE_SIZE, GFP_ATOMIC);
-	// xfc->descriptor = (xf_descriptor_t*) __get_free_page(GFP_ATOMIC);
 
 	if(!xfc->descriptor) {
 		EPRINTK("Cannot allocate memory page for descriptor\n");
@@ -236,8 +215,8 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 	xfc->dhandle = map_op.handle;
 
 	// allocate our own pages for the FIFO based on the number of pages listed in the descriptor
+	// this number comes from the listener end since we mapped their descriptor to our memory
 	xfc->fifo = (void*) kmalloc(xfc->descriptor->num_pages * PAGE_SIZE, GFP_ATOMIC);
-	// xfc->fifo = (void*) kmalloc(64 * PAGE_SIZE, GFP_ATOMIC);
 
 	if(!xfc->fifo) {
 		EPRINTK("Cannot allocate %u memory pages for FIFO\n", xfc->descriptor->num_pages);
@@ -286,12 +265,10 @@ xf_handle_t *xf_connect(domid_t remote_domid, int remote_gref)
 err:
 	if(xfc) {
 		if(xfc->fifo) {
-			// free_pages((unsigned long)xfc->fifo, xfc->descriptor->num_pages);
 			kfree(xfc->fifo);
 		}
 
 		if(xfc->descriptor) {
-			// free_page((unsigned long)xfc->descriptor);
 			kfree(xfc->descriptor);
 		}
 
@@ -312,8 +289,6 @@ int xf_disconnect(xf_handle_t *xfc)
 		goto err;
 	}
 
-	DPRINTK("descriptor: %p\n", xfc->descriptor);
-
 	for(i=0; i < xfc->descriptor->num_pages; i++) {
 		gnttab_set_unmap_op(&unmap_op, (unsigned long)(xfc->fifo + i*PAGE_SIZE),
 			GNTMAP_host_map, xfc->fhandles[i]);
@@ -328,32 +303,14 @@ int xf_disconnect(xf_handle_t *xfc)
 	if( ret )
 		EPRINTK("HYPERVISOR_grant_table_op unmap failed ret = %d \n", ret);
 
-	// free_pages((unsigned long)xfc->fifo, num_pages);
-	// free_page((unsigned long)xfc->descriptor);
-	// DPRINTK("kfree in xf_disconnect\n");
+	// according to KEDR (leak check tool) these pages below are not being freed
+	// but maybe it's a weird xen thing
 
-	// according to KEDR (leak check tool) these pages are not being freed
-	// but maybe it's a weird xen thing, idk
-
-	// TODO I "think" that you don't need to explicitly free pages that were mapped to a different guest
-	// I think unmap hypercall takes care of it??? I have no idea though
-	// those pages just kind *poof*
-	// maybe we gotta kfree first?
-
-	// DPRINTK("fifo: %p, descriptor: %p, xfc: %p\n", xfc->fifo, xfc->descriptor, xfc);
-	//
-	// kfree(xfc->fifo);
-	// // BUG here
-	// // kernel panic when xfc->descriptor is freed
-	// kfree((void*)(xfc->descriptor));
-	// kfree((void*)xfc);
-
-	// DPRINTK("memory freed!\n");
+	// BUG here, sometimes there was a page fault when xfc->descriptor is freed
+	// if that line is removed, the module can be removed but page faults later in clean_suspended_entries, not sure why
 	kfree(xfc->fifo);
 	kfree((void*)(xfc->descriptor));
 	kfree((void*)xfc);
-
-	DPRINTK("end of xf_disconnect\n");
 
 	TRACE_EXIT;
 	return 0;

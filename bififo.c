@@ -43,7 +43,6 @@
 #include <net/ip.h>
 
 #include <asm/xen/hypercall.h>
-//#include <xen/driver_util.h>
 #include <xen/grant_table.h>
 #include <xen/events.h>
 
@@ -119,7 +118,6 @@ static inline void copy_large_pkt(bf_data_t * mdata, struct sk_buff *skb, xf_han
 		}
 	}
 
-        //skb->mac.raw = skb->data - ETH_HLEN;
         skb->mac_header = (__u16)(skb->data - skb->head) + ETH_HLEN;
         skb->ip_summed = CHECKSUM_UNNECESSARY;
         skb->pkt_type = PACKET_HOST;
@@ -185,11 +183,8 @@ void recv_packets(bf_handle_t *bfh)
 		netif_rx(skb);
 
 		// TODO it would be nice if we can just call ip_local_deliver or ip_rcv right here
-		//		but alas these symbols are not
+		//		but alas these symbols are not exported to kernel modules
 		// ip_local_deliver(skb);
-
-		// this isn't needed anymore, i think
-		// NIC->last_rx = jiffies;
 
 		spin_lock_irqsave(&recv_lock, flags);
 	}
@@ -209,16 +204,16 @@ irqreturn_t bf_callback(int rq, void *dev_id)
 
 	BUG_ON(!check_descriptor(bfh));
 
-	// if (BF_SUSPEND_IN(bfh) || BF_SUSPEND_OUT(bfh)) {
-	// 	Entry *e = lookup_bfh(&mac_domid_map, bfh);
-	// 	BUG_ON(!e);
-	//
-	// 	e->status = XENLOOP_STATUS_SUSPEND;
-	//
-	// 	wake_up_interruptible(&swq);
-	// 	TRACE_EXIT;
-	// 	return IRQ_HANDLED;
-	// }
+	if (BF_SUSPEND_IN(bfh) || BF_SUSPEND_OUT(bfh)) {
+		Entry *e = lookup_bfh(&mac_domid_map, bfh);
+		BUG_ON(!e);
+
+		e->status = XENLOOP_STATUS_SUSPEND;
+
+		wake_up_interruptible(&swq);
+		TRACE_EXIT;
+		return IRQ_HANDLED;
+	}
 
 	recv_packets(bfh);
 
@@ -381,8 +376,6 @@ int bind_evtch(domid_t rdomid, uint32_t rport, uint32_t *local_port, int *local_
 		goto out1;
 	}
 	*local_irq = ret;
-
-	DB("bound port = %d irq = %d\n", *local_port, *local_irq);
 
 	TRACE_EXIT;
 	return 0;
