@@ -319,6 +319,8 @@ int xf_disconnect(xf_handle_t *xfc)
 	kfree((void*)(xfc->descriptor)); // BUG here, this seems to page fault, or page fault later in check_suspended_entries
 	kfree((void*)xfc);
 	kfree(xfc->fifo);
+	// the c2109347fac5445c03297c6354719dd220f782dc commit seemed to have less of an issue with this?
+	// right now it page faults on unload
 
 	TRACE_EXIT;
 	return 0;
