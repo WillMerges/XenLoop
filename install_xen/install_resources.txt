@@ -1,0 +1,12 @@
+installed using this guide -> https://wiki.xenproject.org/wiki/Xen_Project_Beginners_Guide
+
+-install Ubuntu in Legacy BIOS with LVM
+-created ubuntu-vg LVM volume group --> vgcreate ubuntu-vg /dev/sdaN
+-created images
+sudo xen-create-image --hostname=ubuntu1 --memory=1024mb --vcpus=2 --lvm=ubuntu-vg --dhcp --pygrub --dist=bionic --passwd
+sudo xen-create-image --hostname=ubuntu2 --memory=1024mb --vcpus=2 --lvm=ubuntu-vg --dhcp --pygrub --dist=bionic --passwd
+-start up
+cd /etc/xen
+sudo xl create -c ubuntu1.cfg
+sudo xl create -c ubuntu2.cfg
+-used virt-manager to setup bridged networking
