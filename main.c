@@ -814,14 +814,14 @@ static unsigned int arphook_in(void* priv, struct sk_buff* skb,
 
 struct nf_hook_ops iphook_in_ops = {
 	.hook = iphook_in,
-	.pf = PF_INET,
+	.pf = PF_INET, // NOTE: this should be NFPROTO_IPV4, which is the same as PF_INET (and the same as AF_INET) however this is hardcoded for both
 	.hooknum = NF_INET_PRE_ROUTING,
 	.priority = 10,
 };
 
 struct nf_hook_ops iphook_out_ops = {
 	.hook = iphook_out,
-	.pf = PF_INET,
+	.pf = PF_INET, // NOTE: should be NFPROTO_IPV4, same reason as with 'iphook_in_ops' above
 	.hooknum = NF_INET_LOCAL_OUT, // NOTE: this used to be NF_INET_POST_ROUTING, but since we do IP lookup instead of MAC lookup we can hook further up in the stack
 	.priority = 10,
 };
